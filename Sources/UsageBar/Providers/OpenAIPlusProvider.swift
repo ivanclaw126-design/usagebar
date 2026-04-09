@@ -3,6 +3,7 @@ import Foundation
 struct OpenAIPlusProvider: ProviderAdapter {
     let provider: ProviderKind = .openAIPlus
     private let client = ProviderHTTPClient()
+    private let oauthUsageEndpoint = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
     private let accountEndpoints = [
         URL(string: "https://chatgpt.com/backend-api/accounts/check")!,
         URL(string: "https://chatgpt.com/backend-api/accounts/status")!
@@ -10,9 +11,35 @@ struct OpenAIPlusProvider: ProviderAdapter {
 
     func fetchBalance(using credential: StoredCredential?) async throws -> ProviderBalanceSnapshot {
         var diagnostics: [ProviderEndpointDiagnostic] = []
+        let account = Self.loadAuthBackedCodexAccount()
+
+        if let accessToken = Self.loadOAuthAccessToken() {
+            do {
+                let oauthSnapshot = try await fetchFromOAuth(accessToken, account: account, diagnostics: &diagnostics)
+                return oauthSnapshot
+            } catch {
+                diagnostics.append(
+                    ProviderEndpointDiagnostic(
+                        name: "Codex OAuth",
+                        path: "/backend-api/wham/usage",
+                        statusText: "Failed",
+                        detail: error.localizedDescription
+                    )
+                )
+            }
+        } else {
+            diagnostics.append(
+                ProviderEndpointDiagnostic(
+                    name: "Codex OAuth",
+                    path: "~/.codex/auth.json",
+                    statusText: "Missing",
+                    detail: "No access token was found in the local Codex auth.json file."
+                )
+            )
+        }
 
         do {
-            return try await fetchFromLocalCodex(diagnostics: &diagnostics)
+            return try await fetchFromLocalCodex(account: account, diagnostics: &diagnostics)
         } catch {
             diagnostics.append(
                 ProviderEndpointDiagnostic(
@@ -48,8 +75,33 @@ struct OpenAIPlusProvider: ProviderAdapter {
         )
     }
 
-    private func fetchFromLocalCodex(diagnostics: inout [ProviderEndpointDiagnostic]) async throws -> ProviderBalanceSnapshot {
-        let account = Self.loadAuthBackedCodexAccount()
+    private func fetchFromOAuth(
+        _ accessToken: String,
+        account: CodexAccountInfo,
+        diagnostics: inout [ProviderEndpointDiagnostic]
+    ) async throws -> ProviderBalanceSnapshot {
+        let json = try await client.jsonRequest(
+            url: oauthUsageEndpoint,
+            headers: [
+                "Authorization": "Bearer \(accessToken)",
+                "Accept": "application/json"
+            ]
+        )
+        diagnostics.append(
+            ProviderEndpointDiagnostic(
+                name: "Codex OAuth",
+                path: "/backend-api/wham/usage",
+                statusText: "OK",
+                detail: "Loaded usage windows from the OpenAI Codex OAuth endpoint."
+            )
+        )
+        return try Self.makeOAuthSnapshot(from: json, account: account, diagnostics: diagnostics)
+    }
+
+    private func fetchFromLocalCodex(
+        account: CodexAccountInfo,
+        diagnostics: inout [ProviderEndpointDiagnostic]
+    ) async throws -> ProviderBalanceSnapshot {
         do {
             let rpcSnapshot = try await Self.fetchViaRPC()
             diagnostics.append(
@@ -91,6 +143,116 @@ struct OpenAIPlusProvider: ProviderAdapter {
             account: account,
             sourceLabel: "CLI Status",
             diagnostics: diagnostics
+        )
+    }
+
+    static func makeOAuthSnapshot(
+        from json: Any,
+        account: CodexAccountInfo,
+        diagnostics: [ProviderEndpointDiagnostic]
+    ) throws -> ProviderBalanceSnapshot {
+        let reader = ProviderPayloadReader(root: json)
+        let fetchedAt = Date()
+
+        let primaryUsed = reader.number(forKeyPaths: [
+            ["rate_limit", "primary_window", "used_percent"],
+            ["primary", "usedPercent"],
+            ["usage", "primary", "usedPercent"],
+            ["rateLimits", "primary", "usedPercent"],
+            ["data", "primary", "usedPercent"]
+        ])
+        let primaryReset = reader.date(forKeyPaths: [
+            ["rate_limit", "primary_window", "reset_at"],
+            ["primary", "resetsAt"],
+            ["usage", "primary", "resetsAt"],
+            ["rateLimits", "primary", "resetsAt"],
+            ["data", "primary", "resetsAt"]
+        ])
+
+        let secondaryUsed = reader.number(forKeyPaths: [
+            ["rate_limit", "secondary_window", "used_percent"],
+            ["secondary", "usedPercent"],
+            ["usage", "secondary", "usedPercent"],
+            ["rateLimits", "secondary", "usedPercent"],
+            ["data", "secondary", "usedPercent"]
+        ])
+        let secondaryReset = reader.date(forKeyPaths: [
+            ["rate_limit", "secondary_window", "reset_at"],
+            ["secondary", "resetsAt"],
+            ["usage", "secondary", "resetsAt"],
+            ["rateLimits", "secondary", "resetsAt"],
+            ["data", "secondary", "resetsAt"]
+        ])
+
+        let credits = reader.number(forKeyPaths: [
+            ["credits", "balance"],
+            ["credits", "balance"],
+            ["usage", "credits", "balance"],
+            ["rateLimits", "credits", "balance"],
+            ["data", "credits", "balance"]
+        ])
+
+        let windows = [
+            primaryUsed.map {
+                CodexUsageWindow(
+                    bucket: .fiveHour,
+                    percentage: $0,
+                    resetAt: primaryReset,
+                    resetDescription: nil,
+                    rawLabel: "primary"
+                )
+            },
+            secondaryUsed.map {
+                CodexUsageWindow(
+                    bucket: .weekly,
+                    percentage: $0,
+                    resetAt: secondaryReset,
+                    resetDescription: nil,
+                    rawLabel: "secondary"
+                )
+            }
+        ].compactMap { $0 }
+
+        guard windows.isEmpty == false || credits != nil else {
+            throw ProviderError.invalidResponse
+        }
+
+        let diagnosticReport = diagnostics.map { "\($0.name): \($0.statusText) [\($0.path)] - \($0.detail)" }.joined(separator: "\n")
+        let metadata = CodexProviderMetadata(
+            sourceLabel: "OAuth API",
+            planName: reader.string(forKeyPaths: [["plan_type"]]) ?? account.plan,
+            accountEmail: reader.string(forKeyPaths: [["email"]]) ?? account.email,
+            windows: windows,
+            creditsRemaining: credits,
+            diagnosticReport: diagnosticReport
+        )
+        let primaryWindow = windows.first { $0.bucket != .unmatched }
+        let summary = primaryWindow.map { "\($0.bucket.displayName) \(Int($0.percentage.rounded()))%" }
+            ?? credits.map { "Credits \(formatCredits($0))" }
+            ?? "Codex connected"
+
+        var detailParts = ["OAuth API"]
+        if let plan = account.plan {
+            detailParts.append(plan)
+        }
+        if let email = account.email {
+            detailParts.append(email)
+        }
+        if let credits {
+            detailParts.append("Credits \(formatCredits(credits))")
+        }
+
+        return ProviderBalanceSnapshot(
+            provider: .openAIPlus,
+            status: .ok,
+            remainingValue: credits.map(formatCredits),
+            remainingUnit: credits != nil ? "credits" : nil,
+            usedValue: nil,
+            resetAt: primaryWindow?.resetAt,
+            fetchedAt: fetchedAt,
+            summaryText: summary,
+            detailText: detailParts.joined(separator: " • "),
+            providerMetadata: ProviderSnapshotMetadata(codex: metadata)
         )
     }
 
@@ -375,6 +537,28 @@ struct OpenAIPlusProvider: ProviderAdapter {
         guard let data = Data(base64Encoded: payload) else { return nil }
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
+
+    static func loadOAuthAccessToken() -> String? {
+        let candidates: [URL] = [
+            ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0).appendingPathComponent("auth.json") },
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/auth.json")
+        ].compactMap { $0 }
+
+        for url in candidates {
+            guard let data = try? Data(contentsOf: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { continue }
+
+            let tokens = json["tokens"] as? [String: Any]
+            if let accessToken = (json["access_token"] as? String) ?? (tokens?["access_token"] as? String),
+               accessToken.isEmpty == false
+            {
+                return accessToken
+            }
+        }
+
+        return nil
+    }
 }
 
 struct CodexAccountInfo: Equatable {
@@ -406,54 +590,42 @@ struct CodexStatusSnapshot: Equatable {
 }
 
 private final class CodexRPCClient {
-    private let process = Process()
-    private let stdinPipe = Pipe()
-    private let stdoutPipe = Pipe()
-    private let stderrPipe = Pipe()
-
-    init() throws {
+    func fetchSnapshot() throws -> CodexRPCSnapshot {
         let env = ProcessInfo.processInfo.environment
         let binary = Self.resolveBinaryPath(environment: env)
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [binary, "-s", "read-only", "-a", "untrusted", "app-server"]
-        process.standardInput = stdinPipe
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-        var childEnvironment = env
-        childEnvironment["PATH"] = Self.effectivePATH(environment: env)
-        process.environment = childEnvironment
-        try process.run()
-    }
+        let payload = """
+        {"id":1,"method":"initialize","params":{"clientInfo":{"name":"usagebar","version":"0.1"}}}
+        {"method":"initialized","params":{}}
+        {"id":2,"method":"account/rateLimits/read","params":{}}
+        """
 
-    deinit {
-        if process.isRunning {
-            process.terminate()
-        }
-    }
+        let result = try Self.runProcess(
+            executable: "/usr/bin/env",
+            arguments: [binary, "-s", "read-only", "-a", "untrusted", "app-server"],
+            environment: mergedEnvironment(from: env),
+            stdin: Data(payload.utf8),
+            timeout: 8
+        )
 
-    func fetchSnapshot() throws -> CodexRPCSnapshot {
-        defer {
-            if process.isRunning {
-                process.terminate()
+        let messages = result.stdout
+            .split(separator: "\n")
+            .compactMap { line -> [String: Any]? in
+                guard let data = String(line).data(using: .utf8) else { return nil }
+                return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             }
+        guard let rateLimits = messages.first(where: {
+            (($0["id"] as? Int) ?? ($0["id"] as? NSNumber)?.intValue) == 2
+        }) else {
+            throw ProviderError.unsupportedFeature(
+                "Codex RPC timed out or returned no rate-limit payload.\n\(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
+            )
         }
-
-        _ = try request(id: 1, method: "initialize", params: [
-            "clientInfo": [
-                "name": "usagebar",
-                "version": "0.1"
-            ]
-        ])
-        try sendNotification(method: "initialized")
-        let rateLimits = try request(id: 2, method: "account/rateLimits/read", params: [:])
-        let account = try? request(id: 3, method: "account/read", params: [:])
 
         let rateResult = rateLimits["result"] as? [String: Any]
         let ratePayload = rateResult?["rateLimits"] as? [String: Any] ?? rateResult ?? [:]
         let primary = Self.parseWindow(ratePayload["primary"] as? [String: Any])
         let secondary = Self.parseWindow(ratePayload["secondary"] as? [String: Any])
         let credits = Self.parseCredits(ratePayload["credits"] as? [String: Any])
-        _ = account
         return CodexRPCSnapshot(primary: primary, secondary: secondary, creditsRemaining: credits)
     }
 
@@ -481,61 +653,6 @@ private final class CodexRPCClient {
             return balance.doubleValue
         }
         return nil
-    }
-
-    private func request(id: Int, method: String, params: [String: Any]) throws -> [String: Any] {
-        try sendPayload([
-            "id": id,
-            "method": method,
-            "params": params
-        ])
-
-        while true {
-            let message = try readNextMessage()
-            if message["method"] != nil && message["id"] == nil {
-                continue
-            }
-            let messageID = (message["id"] as? Int) ?? (message["id"] as? NSNumber)?.intValue
-            guard messageID == id else { continue }
-            if let error = message["error"] as? [String: Any],
-               let errorMessage = error["message"] as? String
-            {
-                throw ProviderError.unsupportedFeature("Codex RPC failed: \(errorMessage)")
-            }
-            return message
-        }
-    }
-
-    private func sendNotification(method: String) throws {
-        try sendPayload([
-            "method": method,
-            "params": [:]
-        ])
-    }
-
-    private func sendPayload(_ payload: [String: Any]) throws {
-        let data = try JSONSerialization.data(withJSONObject: payload)
-        stdinPipe.fileHandleForWriting.write(data)
-        stdinPipe.fileHandleForWriting.write(Data([0x0A]))
-    }
-
-    private func readNextMessage() throws -> [String: Any] {
-        while true {
-            guard let line = try stdoutPipe.fileHandleForReading.read(upToCount: 16_384),
-                  line.isEmpty == false
-            else {
-                let stderrData = stderrPipe.fileHandleForReading.availableData
-                let stderrText = String(data: stderrData, encoding: .utf8) ?? "app-server closed stdout"
-                throw ProviderError.unsupportedFeature("Codex RPC closed early: \(stderrText)")
-            }
-
-            for candidate in String(decoding: line, as: UTF8.self).split(separator: "\n") {
-                guard let data = String(candidate).data(using: .utf8),
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                else { continue }
-                return json
-            }
-        }
     }
 
     static func resolveBinaryPath(environment: [String: String]) -> String {
@@ -574,39 +691,113 @@ private final class CodexRPCClient {
         let existing = environment["PATH"]?.split(separator: ":").map(String.init) ?? []
         return Array(NSOrderedSet(array: preferred + existing)).compactMap { $0 as? String }.joined(separator: ":")
     }
+
+    private func mergedEnvironment(from environment: [String: String]) -> [String: String] {
+        var childEnvironment = environment
+        childEnvironment["PATH"] = Self.effectivePATH(environment: environment)
+        return childEnvironment
+    }
+
+    static func runProcess(
+        executable: String,
+        arguments: [String],
+        environment: [String: String],
+        stdin: Data?,
+        timeout: TimeInterval
+    ) throws -> (stdout: String, stderr: String) {
+        let process = Process()
+        let stdinPipe = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        let stdoutBuffer = ProcessDataBuffer()
+        let stderrBuffer = ProcessDataBuffer()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
+            stdoutBuffer.append(data)
+        }
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
+            stderrBuffer.append(data)
+        }
+
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.environment = environment
+        process.standardInput = stdinPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        process.terminationHandler = { _ in
+            semaphore.signal()
+        }
+
+        try process.run()
+        if let stdin {
+            stdinPipe.fileHandleForWriting.write(stdin)
+        }
+        stdinPipe.fileHandleForWriting.closeFile()
+
+        let waitResult = semaphore.wait(timeout: .now() + timeout)
+        if waitResult == .timedOut {
+            if process.isRunning {
+                process.terminate()
+            }
+            throw ProviderError.unsupportedFeature("Codex process timed out after \(Int(timeout))s.")
+        }
+
+        stdoutBuffer.append(stdoutPipe.fileHandleForReading.readDataToEndOfFile())
+        stderrBuffer.append(stderrPipe.fileHandleForReading.readDataToEndOfFile())
+        stdoutPipe.fileHandleForReading.readabilityHandler = nil
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+
+        return (
+            stdout: String(data: stdoutBuffer.snapshot(), encoding: .utf8) ?? "",
+            stderr: String(data: stderrBuffer.snapshot(), encoding: .utf8) ?? ""
+        )
+    }
+}
+
+private final class ProcessDataBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        data.append(chunk)
+    }
+
+    func snapshot() -> Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return data
+    }
 }
 
 struct CodexStatusProbe {
     func fetch() throws -> CodexStatusSnapshot {
         let env = ProcessInfo.processInfo.environment
         let binary = CodexRPCClient.resolveBinaryPath(environment: env)
-        let process = Process()
-        let stdinPipe = Pipe()
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/script")
-        process.arguments = ["-q", "/dev/null", binary, "-s", "read-only", "-a", "untrusted"]
-        process.standardInput = stdinPipe
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
         var childEnvironment = env
         childEnvironment["PATH"] = CodexRPCClient.effectivePATH(environment: env)
         childEnvironment["TERM"] = "xterm-256color"
-        process.environment = childEnvironment
-
-        try process.run()
-        stdinPipe.fileHandleForWriting.write(Data("/status\n/exit\n".utf8))
-        stdinPipe.fileHandleForWriting.closeFile()
-        process.waitUntilExit()
-
-        let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        let text = String(data: data, encoding: .utf8) ?? ""
-
-        guard process.terminationStatus == 0 || text.isEmpty == false else {
-            let stderrText = String(data: stderrData, encoding: .utf8) ?? "status probe failed"
-            throw ProviderError.unsupportedFeature("Codex status probe failed: \(stderrText)")
-        }
+        let result = try CodexRPCClient.runProcess(
+            executable: "/usr/bin/script",
+            arguments: ["-q", "/dev/null", binary, "-s", "read-only", "-a", "untrusted"],
+            environment: childEnvironment,
+            stdin: Data("/status\n/exit\n".utf8),
+            timeout: 8
+        )
+        let text = result.stdout
 
         return try Self.parse(text: text)
     }

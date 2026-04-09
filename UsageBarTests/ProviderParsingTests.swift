@@ -257,4 +257,38 @@ final class ProviderParsingTests: XCTestCase {
         XCTAssertEqual(snapshot.providerMetadata?.codex?.creditsRemaining, 19.5)
         XCTAssertEqual(snapshot.summaryText, "5 Hours 28%")
     }
+
+    func testCodexOAuthSnapshotBuildsUsageWindows() throws {
+        let payload: [String: Any] = [
+            "plan_type": "plus",
+            "email": "me@example.com",
+            "rate_limit": [
+                "primary_window": [
+                    "used_percent": 31,
+                    "reset_at": 1775750700
+                ],
+                "secondary_window": [
+                    "used_percent": 57,
+                    "reset_at": 1776038400
+                ]
+            ],
+            "credits": [
+                "balance": 12.5
+            ]
+        ]
+
+        let snapshot = try OpenAIPlusProvider.makeOAuthSnapshot(
+            from: payload,
+            account: CodexAccountInfo(accountID: nil, email: "me@example.com", plan: "plus"),
+            diagnostics: []
+        )
+
+        XCTAssertEqual(snapshot.status, .ok)
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.sourceLabel, "OAuth API")
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.windows.count, 2)
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.windows.first?.bucket, .fiveHour)
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.creditsRemaining, 12.5)
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.planName, "plus")
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.accountEmail, "me@example.com")
+    }
 }
