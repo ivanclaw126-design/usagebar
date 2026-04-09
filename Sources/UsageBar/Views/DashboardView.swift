@@ -88,7 +88,11 @@ struct DashboardView: View {
 
             HStack {
                 Button(text("Open Settings", "打开设置")) {
+                    AppDelegate.bringAppToFront()
                     openSettings()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        AppDelegate.bringAppToFront()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -153,7 +157,11 @@ struct DashboardView: View {
                 .buttonStyle(.borderedProminent)
 
                 Button(text("Open Settings", "打开设置")) {
+                    AppDelegate.bringAppToFront()
                     openSettings()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        AppDelegate.bringAppToFront()
+                    }
                 }
                 .buttonStyle(.bordered)
 

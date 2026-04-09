@@ -679,6 +679,10 @@ private final class CodexRPCClient {
             return candidate
         }
 
+        if let shellResolved = resolveBinaryPathFromShell(), shellResolved.isEmpty == false {
+            return shellResolved
+        }
+
         return "codex"
     }
 
@@ -696,6 +700,26 @@ private final class CodexRPCClient {
         ]
         let existing = environment["PATH"]?.split(separator: ":").map(String.init) ?? []
         return Array(NSOrderedSet(array: preferred + existing)).compactMap { $0 as? String }.joined(separator: ":")
+    }
+
+    private static func resolveBinaryPathFromShell() -> String? {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-lc", "command -v codex 2>/dev/null || which codex 2>/dev/null"]
+        process.standardOutput = output
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            let resolved = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return resolved?.isEmpty == false ? resolved : nil
+        } catch {
+            return nil
+        }
     }
 
     private func mergedEnvironment(from environment: [String: String]) -> [String: String] {

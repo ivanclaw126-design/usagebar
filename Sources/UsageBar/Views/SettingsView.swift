@@ -56,6 +56,9 @@ struct SettingsView: View {
                 .environmentObject(providerStore)
                 .environmentObject(settingsStore)
         }
+        .onAppear {
+            AppDelegate.bringAppToFront()
+        }
     }
 
     private var onboardingGuide: some View {
@@ -421,5 +424,8 @@ struct SessionCaptureContainer: View {
             SessionCaptureSheet(webView: webView)
         }
         .frame(minWidth: 900, minHeight: 640)
+        .onAppear {
+            AppDelegate.bringAppToFront()
+        }
     }
 }
