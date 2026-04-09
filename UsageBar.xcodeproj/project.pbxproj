@@ -1,0 +1,511 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000031 /* UsageBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* UsageBarApp.swift */; };
+		A00000000000000000000032 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* AppDelegate.swift */; };
+		A00000000000000000000033 /* ProviderModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* ProviderModels.swift */; };
+		A00000000000000000000034 /* BailianProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000014 /* BailianProvider.swift */; };
+		A00000000000000000000035 /* OpenAIPlusProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000015 /* OpenAIPlusProvider.swift */; };
+		A00000000000000000000036 /* ProviderAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* ProviderAdapter.swift */; };
+		A00000000000000000000037 /* ZAIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* ZAIProvider.swift */; };
+		A00000000000000000000038 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* CredentialStore.swift */; };
+		A00000000000000000000039 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* Formatting.swift */; };
+		A0000000000000000000003A /* ProviderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001A /* ProviderStore.swift */; };
+		A0000000000000000000003B /* SessionCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* SessionCapture.swift */; };
+		A0000000000000000000003C /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* SettingsStore.swift */; };
+		A0000000000000000000003D /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001D /* DashboardView.swift */; };
+		A0000000000000000000003E /* ProviderCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001E /* ProviderCardView.swift */; };
+		A0000000000000000000003F /* SessionCaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001F /* SessionCaptureSheet.swift */; };
+		A00000000000000000000040 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000020 /* SettingsView.swift */; };
+		A00000000000000000000041 /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000021 /* VisualEffectView.swift */; };
+		A00000000000000000000042 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000022 /* Assets.xcassets */; };
+		A00000000000000000000043 /* UsageBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000023 /* UsageBarTests.swift */; };
+		A00000000000000000000044 /* ProviderPayloadReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000024 /* ProviderPayloadReader.swift */; };
+		A00000000000000000000045 /* ProviderParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000025 /* ProviderParsingTests.swift */; };
+		A00000000000000000000046 /* ProviderNumberFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000026 /* ProviderNumberFormatter.swift */; };
+		A00000000000000000000047 /* ProviderStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000027 /* ProviderStoreTests.swift */; };
+		A00000000000000000000048 /* SnapshotCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000028 /* SnapshotCacheStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000001 /* UsageBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UsageBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000002 /* UsageBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UsageBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000011 /* UsageBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageBarApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000012 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A00000000000000000000013 /* ProviderModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModels.swift; sourceTree = "<group>"; };
+		A00000000000000000000014 /* BailianProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BailianProvider.swift; sourceTree = "<group>"; };
+		A00000000000000000000015 /* OpenAIPlusProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIPlusProvider.swift; sourceTree = "<group>"; };
+		A00000000000000000000016 /* ProviderAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAdapter.swift; sourceTree = "<group>"; };
+		A00000000000000000000017 /* ZAIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZAIProvider.swift; sourceTree = "<group>"; };
+		A00000000000000000000018 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
+		A00000000000000000000019 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
+		A0000000000000000000001A /* ProviderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderStore.swift; sourceTree = "<group>"; };
+		A0000000000000000000001B /* SessionCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCapture.swift; sourceTree = "<group>"; };
+		A0000000000000000000001C /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		A0000000000000000000001D /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		A0000000000000000000001E /* ProviderCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCardView.swift; sourceTree = "<group>"; };
+		A0000000000000000000001F /* SessionCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCaptureSheet.swift; sourceTree = "<group>"; };
+		A00000000000000000000020 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A00000000000000000000021 /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
+		A00000000000000000000022 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A00000000000000000000023 /* UsageBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageBarTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000024 /* ProviderPayloadReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPayloadReader.swift; sourceTree = "<group>"; };
+		A00000000000000000000025 /* ProviderParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderParsingTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000026 /* ProviderNumberFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderNumberFormatter.swift; sourceTree = "<group>"; };
+		A00000000000000000000027 /* ProviderStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderStoreTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000028 /* SnapshotCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCacheStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000052 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000061 = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000062 /* Sources */,
+				A00000000000000000000063 /* UsageBar */,
+				A00000000000000000000064 /* UsageBarTests */,
+				A00000000000000000000065 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000062 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000066 /* App */,
+				A00000000000000000000067 /* Models */,
+				A00000000000000000000068 /* Providers */,
+				A00000000000000000000069 /* Services */,
+				A0000000000000000000006A /* Views */,
+			);
+			path = Sources/UsageBar;
+			sourceTree = SOURCE_ROOT;
+		};
+		A00000000000000000000063 /* UsageBar */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000022 /* Assets.xcassets */,
+			);
+			path = UsageBar;
+			sourceTree = SOURCE_ROOT;
+		};
+		A00000000000000000000064 /* UsageBarTests */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000023 /* UsageBarTests.swift */,
+				A00000000000000000000025 /* ProviderParsingTests.swift */,
+				A00000000000000000000027 /* ProviderStoreTests.swift */,
+			);
+			path = UsageBarTests;
+			sourceTree = SOURCE_ROOT;
+		};
+		A00000000000000000000065 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000001 /* UsageBar.app */,
+				A00000000000000000000002 /* UsageBarTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000066 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000011 /* UsageBarApp.swift */,
+				A00000000000000000000012 /* AppDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000067 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000013 /* ProviderModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000068 /* Providers */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000014 /* BailianProvider.swift */,
+				A00000000000000000000015 /* OpenAIPlusProvider.swift */,
+				A00000000000000000000016 /* ProviderAdapter.swift */,
+				A00000000000000000000026 /* ProviderNumberFormatter.swift */,
+				A00000000000000000000024 /* ProviderPayloadReader.swift */,
+				A00000000000000000000017 /* ZAIProvider.swift */,
+			);
+			path = Providers;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000069 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000018 /* CredentialStore.swift */,
+				A00000000000000000000019 /* Formatting.swift */,
+				A0000000000000000000001A /* ProviderStore.swift */,
+				A00000000000000000000028 /* SnapshotCacheStore.swift */,
+				A0000000000000000000001B /* SessionCapture.swift */,
+				A0000000000000000000001C /* SettingsStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000006A /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000001D /* DashboardView.swift */,
+				A0000000000000000000001E /* ProviderCardView.swift */,
+				A0000000000000000000001F /* SessionCaptureSheet.swift */,
+				A00000000000000000000020 /* SettingsView.swift */,
+				A00000000000000000000021 /* VisualEffectView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000071 /* UsageBar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000081 /* Build configuration list for PBXNativeTarget "UsageBar" */;
+			buildPhases = (
+				A00000000000000000000091 /* Sources */,
+				A00000000000000000000051 /* Frameworks */,
+				A00000000000000000000092 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = UsageBar;
+			productName = UsageBar;
+			productReference = A00000000000000000000001 /* UsageBar.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A00000000000000000000072 /* UsageBarTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000082 /* Build configuration list for PBXNativeTarget "UsageBarTests" */;
+			buildPhases = (
+				A00000000000000000000093 /* Sources */,
+				A00000000000000000000052 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A000000000000000000000A1 /* PBXTargetDependency */,
+			);
+			name = UsageBarTests;
+			productName = UsageBarTests;
+			productReference = A00000000000000000000002 /* UsageBarTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000070 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					A00000000000000000000071 = {
+						CreatedOnToolsVersion = 16.3;
+					};
+					A00000000000000000000072 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = A00000000000000000000071;
+					};
+				};
+			};
+			buildConfigurationList = A00000000000000000000080 /* Build configuration list for PBXProject "UsageBar" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A00000000000000000000061;
+			productRefGroup = A00000000000000000000065 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000000000000000000071 /* UsageBar */,
+				A00000000000000000000072 /* UsageBarTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000092 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000042 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000091 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000031 /* UsageBarApp.swift in Sources */,
+				A00000000000000000000032 /* AppDelegate.swift in Sources */,
+				A00000000000000000000033 /* ProviderModels.swift in Sources */,
+				A00000000000000000000034 /* BailianProvider.swift in Sources */,
+				A00000000000000000000035 /* OpenAIPlusProvider.swift in Sources */,
+				A00000000000000000000036 /* ProviderAdapter.swift in Sources */,
+				A00000000000000000000037 /* ZAIProvider.swift in Sources */,
+				A00000000000000000000038 /* CredentialStore.swift in Sources */,
+				A00000000000000000000039 /* Formatting.swift in Sources */,
+				A0000000000000000000003A /* ProviderStore.swift in Sources */,
+				A00000000000000000000048 /* SnapshotCacheStore.swift in Sources */,
+				A0000000000000000000003B /* SessionCapture.swift in Sources */,
+				A0000000000000000000003C /* SettingsStore.swift in Sources */,
+				A0000000000000000000003D /* DashboardView.swift in Sources */,
+				A0000000000000000000003E /* ProviderCardView.swift in Sources */,
+				A0000000000000000000003F /* SessionCaptureSheet.swift in Sources */,
+				A00000000000000000000040 /* SettingsView.swift in Sources */,
+				A00000000000000000000041 /* VisualEffectView.swift in Sources */,
+				A00000000000000000000046 /* ProviderNumberFormatter.swift in Sources */,
+				A00000000000000000000044 /* ProviderPayloadReader.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000093 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000043 /* UsageBarTests.swift in Sources */,
+				A00000000000000000000045 /* ProviderParsingTests.swift in Sources */,
+				A00000000000000000000047 /* ProviderStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A000000000000000000000A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00000000000000000000071 /* UsageBar */;
+			targetProxy = A000000000000000000000A2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXContainerItemProxy section */
+		A000000000000000000000A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000070 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000071;
+			remoteInfo = UsageBar;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin XCBuildConfiguration section */
+		A000000000000000000000B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A000000000000000000000B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A000000000000000000000B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = UsageBar;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spicyclaw.UsageBar;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A000000000000000000000B4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = UsageBar;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spicyclaw.UsageBar;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A000000000000000000000B5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = UsageBarTests;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spicyclaw.UsageBarTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UsageBar.app/Contents/MacOS/UsageBar";
+				TEST_TARGET_NAME = UsageBar;
+			};
+			name = Debug;
+		};
+		A000000000000000000000B6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = UsageBarTests;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spicyclaw.UsageBarTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UsageBar.app/Contents/MacOS/UsageBar";
+				TEST_TARGET_NAME = UsageBar;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000080 /* Build configuration list for PBXProject "UsageBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A000000000000000000000B1 /* Debug */,
+				A000000000000000000000B2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000081 /* Build configuration list for PBXNativeTarget "UsageBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A000000000000000000000B3 /* Debug */,
+				A000000000000000000000B4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000082 /* Build configuration list for PBXNativeTarget "UsageBarTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A000000000000000000000B5 /* Debug */,
+				A000000000000000000000B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000070 /* Project object */;
+}
