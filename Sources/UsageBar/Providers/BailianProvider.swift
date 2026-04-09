@@ -460,7 +460,7 @@ struct BailianProvider: ProviderAdapter {
         }
 
         return BailianUsageResponse(
-            planName: planName,
+            planName: normalizedPlanName(planName, windows: windows),
             statusText: statusText,
             windows: windows,
             remainingValue: remaining,
@@ -519,7 +519,7 @@ struct BailianProvider: ProviderAdapter {
         }
 
         return BailianUsageResponse(
-            planName: "Coding Plan",
+            planName: normalizedPlanName(nil, windows: windows),
             statusText: "Rendered Page",
             windows: windows,
             remainingValue: nil,
@@ -577,6 +577,36 @@ struct BailianProvider: ProviderAdapter {
             return .monthly
         }
         return .unmatched
+    }
+
+    private static func normalizedPlanName(_ rawPlanName: String?, windows: [BailianUsageWindow]) -> String {
+        if let rawPlanName, let normalized = normalizePlanTier(in: rawPlanName) {
+            return normalized
+        }
+        if inferredLitePlan(from: windows) {
+            return "Coding Plan Lite"
+        }
+        return "Coding Plan"
+    }
+
+    private static func normalizePlanTier(in rawPlanName: String) -> String? {
+        let lowered = rawPlanName.lowercased()
+        if lowered.contains("lite") {
+            return "Coding Plan Lite"
+        }
+        if lowered.contains("pro") {
+            return "Coding Plan Pro"
+        }
+        if lowered.contains("max") {
+            return "Coding Plan Max"
+        }
+        return nil
+    }
+
+    private static func inferredLitePlan(from windows: [BailianUsageWindow]) -> Bool {
+        guard windows.isEmpty == false else { return false }
+        let uniqueLimits = Set(windows.map { Int($0.limit.rounded()) })
+        return uniqueLimits == [100]
     }
 
     static func extractEmbeddedJSONCandidates(fromHTML html: String) -> [Any] {

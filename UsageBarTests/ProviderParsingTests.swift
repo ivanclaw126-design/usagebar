@@ -179,6 +179,31 @@ final class ProviderParsingTests: XCTestCase {
         XCTAssertEqual(Int(response.windows[0].percentage), 68)
     }
 
+    func testZAIQuotaResponseParsesNestedFiveHourResetTime() throws {
+        let payload: [String: Any] = [
+            "data": [
+                "limits": [
+                    [
+                        "type": "TOKENS_LIMIT",
+                        "unit": 3,
+                        "number": 5,
+                        "limit": 1000,
+                        "used": 140,
+                        "percentage": 14,
+                        "window": [
+                            "resetAt": "2026-04-10T05:13:24Z"
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+        let response = try ZAIProvider.parseQuotaResponse(from: payload)
+
+        XCTAssertEqual(response.windows.first?.bucket, .fiveHour)
+        XCTAssertNotNil(response.windows.first?.resetAt)
+    }
+
     func testZAIQuotaResponseKeepsUnmatchedWindows() throws {
         let payload: [String: Any] = [
             "limits": [
@@ -212,7 +237,7 @@ final class ProviderParsingTests: XCTestCase {
 
         XCTAssertEqual(snapshot.provider, .openAIPlus)
         XCTAssertEqual(snapshot.status, .supportedLimited)
-        XCTAssertEqual(snapshot.summaryText, "plus active")
+        XCTAssertEqual(snapshot.summaryText, "Plus active")
         XCTAssertNotNil(snapshot.resetAt)
         XCTAssertNil(snapshot.remainingValue)
     }
@@ -288,7 +313,7 @@ final class ProviderParsingTests: XCTestCase {
         XCTAssertEqual(snapshot.providerMetadata?.codex?.windows.count, 2)
         XCTAssertEqual(snapshot.providerMetadata?.codex?.windows.first?.bucket, .fiveHour)
         XCTAssertEqual(snapshot.providerMetadata?.codex?.creditsRemaining, 12.5)
-        XCTAssertEqual(snapshot.providerMetadata?.codex?.planName, "plus")
+        XCTAssertEqual(snapshot.providerMetadata?.codex?.planName, "Plus")
         XCTAssertEqual(snapshot.providerMetadata?.codex?.accountEmail, "me@example.com")
     }
 }

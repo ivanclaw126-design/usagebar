@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProviderCardView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
     let snapshot: ProviderBalanceSnapshot
     let hasCredential: Bool
     let reconnectAction: () -> Void
@@ -9,25 +10,28 @@ struct ProviderCardView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(snapshot.provider.displayName)
-                        .font(.headline)
-                    Text(snapshot.status.badgeText)
+                    HStack(spacing: 8) {
+                        ProviderLogoView(provider: snapshot.provider)
+                        Text(snapshot.provider.displayName)
+                            .font(.headline)
+                    }
+                    Text(statusBadgeText)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(statusColor)
                 }
                 Spacer()
                 if snapshot.status == .authRequired || hasCredential == false {
-                    Button("Reconnect", action: reconnectAction)
+                    Button(text("Reconnect", "重新连接"), action: reconnectAction)
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                 }
             }
 
             HStack(spacing: 6) {
-                Text("Updated")
+                Text(text("Updated", "更新于"))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(snapshot.fetchedAt.fullTimestampLabel)
+                Text(snapshot.fetchedAt.fullTimestampLabel(isChinese: settingsStore.snapshot.language == .chinese))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(dataAgeColor)
                     .fixedSize(horizontal: false, vertical: true)
@@ -41,20 +45,25 @@ struct ProviderCardView: View {
                 codexUsageSection(metadata: codexMetadata)
             } else {
                 HStack(spacing: 12) {
-                    metricBlock(title: "Remaining", value: formattedRemaining)
-                    metricBlock(title: "Used", value: snapshot.usedValue ?? "—")
-                    metricBlock(title: "Reset", value: snapshot.resetAt?.dashboardLabel ?? "—")
+                    metricBlock(title: text("Remaining", "剩余"), value: formattedRemaining)
+                    metricBlock(title: text("Used", "已用"), value: snapshot.usedValue ?? "—")
+                    metricBlock(
+                        title: text("Reset", "重置"),
+                        value: snapshot.resetAt?.dashboardLabel(isChinese: settingsStore.snapshot.language == .chinese) ?? "—"
+                    )
                 }
             }
 
-            Text(snapshot.summaryText)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.primary)
+            if shouldShowFooterText {
+                Text(snapshot.summaryText)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.primary)
 
-            Text(snapshot.detailText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(snapshot.detailText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -76,24 +85,21 @@ struct ProviderCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(metadata.planName ?? "Coding Plan")
                         .font(.system(.title3, design: .rounded).weight(.semibold))
-                    Text(metadata.statusText ?? snapshot.status.badgeText)
+                    Text(providerSubtitleText)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(providerSubtitleColor)
                 }
                 Spacer()
-                Text("\(metadata.windows.filter { $0.bucket != .unmatched }.count) windows")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.white.opacity(0.75))
-                    .clipShape(Capsule())
             }
 
             if metadata.windows.isEmpty {
                 HStack(spacing: 12) {
-                    metricBlock(title: "Remaining", value: formattedRemaining)
-                    metricBlock(title: "Used", value: snapshot.usedValue ?? "—")
-                    metricBlock(title: "Reset", value: snapshot.resetAt?.dashboardLabel ?? "—")
+                    metricBlock(title: text("Remaining", "剩余"), value: formattedRemaining)
+                    metricBlock(title: text("Used", "已用"), value: snapshot.usedValue ?? "—")
+                    metricBlock(
+                        title: text("Reset", "重置"),
+                        value: snapshot.resetAt?.dashboardLabel(isChinese: settingsStore.snapshot.language == .chinese) ?? "—"
+                    )
                 }
             } else {
                 ForEach(metadata.windows.prefix(3)) { window in
@@ -101,7 +107,7 @@ struct ProviderCardView: View {
                 }
 
                 if metadata.unmatchedWindowCount > 0 {
-                    Text("Other Limits: \(metadata.unmatchedWindowCount) unmatched windows")
+                    Text(text("Other Limits: \(metadata.unmatchedWindowCount) unmatched windows", "其他限制：\(metadata.unmatchedWindowCount) 个未匹配窗口"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -116,12 +122,12 @@ struct ProviderCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(metadata.planName ?? "Codex")
                         .font(.system(.title3, design: .rounded).weight(.semibold))
-                    Text(metadata.sourceLabel)
+                    Text(providerSubtitleText)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(providerSubtitleColor)
                 }
                 Spacer()
-                if let credits = metadata.creditsRemaining {
+                if let credits = metadata.creditsRemaining, credits > 0 {
                     Text("\(formattedCredits(credits)) credits")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10)
@@ -132,19 +138,13 @@ struct ProviderCardView: View {
             }
 
             if metadata.windows.isEmpty {
-                Text("Local Codex usage windows are not available yet.")
+                Text(text("Codex usage windows are not available yet.", "暂时还没有 Codex 用量窗口数据。"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(metadata.windows.prefix(2)) { window in
                     codexWindowRow(window)
                 }
-            }
-
-            if let email = metadata.accountEmail {
-                Text(email)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -156,21 +156,15 @@ struct ProviderCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(metadata.planName ?? "Unknown Plan")
                         .font(.system(.title3, design: .rounded).weight(.semibold))
-                    Text(metadata.subscriptionStatusText ?? snapshot.status.badgeText)
+                    Text(providerSubtitleText)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(providerSubtitleColor)
                 }
                 Spacer()
-                Text("\(metadata.windows.filter { $0.bucket != .unmatched }.count) windows")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.white.opacity(0.75))
-                    .clipShape(Capsule())
             }
 
             if metadata.windows.isEmpty {
-                Text("Quota windows are not available yet.")
+                Text(text("Quota windows are not available yet.", "暂时还没有配额窗口数据。"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -179,7 +173,7 @@ struct ProviderCardView: View {
                 }
 
                 if metadata.unmatchedWindowCount > 0 {
-                    Text("Other Limits: \(metadata.unmatchedWindowCount) unmatched windows")
+                    Text(text("Other Limits: \(metadata.unmatchedWindowCount) unmatched windows", "其他限制：\(metadata.unmatchedWindowCount) 个未匹配窗口"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -209,10 +203,17 @@ struct ProviderCardView: View {
             .frame(height: 8)
 
             HStack(alignment: .top, spacing: 8) {
-                Text("Resets")
+                Text(text("Resets", "重置"))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(window.resetAt?.fullTimestampLabel ?? "—")
+                Text(
+                    window.resetAt.map {
+                        $0.resetLabel(
+                            isChinese: settingsStore.snapshot.language == .chinese,
+                            includeTime: window.bucket == .fiveHour
+                        )
+                    } ?? window.resetDescription ?? zaiResetFallbackText(for: window)
+                )
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -253,10 +254,17 @@ struct ProviderCardView: View {
             .frame(height: 8)
 
             HStack(alignment: .top, spacing: 8) {
-                Text("Resets")
+                Text(text("Resets", "重置"))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(window.resetAt?.fullTimestampLabel ?? "—")
+                Text(
+                    window.resetAt.map {
+                        $0.resetLabel(
+                            isChinese: settingsStore.snapshot.language == .chinese,
+                            includeTime: window.bucket == .fiveHour
+                        )
+                    } ?? "—"
+                )
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -297,10 +305,17 @@ struct ProviderCardView: View {
             .frame(height: 8)
 
             HStack(alignment: .top, spacing: 8) {
-                Text("Resets")
+                Text(text("Resets", "重置"))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(window.resetAt?.fullTimestampLabel ?? window.resetDescription ?? "—")
+                Text(
+                    window.resetAt.map {
+                        $0.resetLabel(
+                            isChinese: settingsStore.snapshot.language == .chinese,
+                            includeTime: window.bucket == .fiveHour
+                        )
+                    } ?? window.resetDescription ?? "—"
+                )
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -344,6 +359,59 @@ struct ProviderCardView: View {
         }
     }
 
+    private var providerSubtitleText: String {
+        switch snapshot.status {
+        case .ok:
+            return text("Live usage synced", "已同步最新用量")
+        case .degraded:
+            return text("Cached snapshot", "显示缓存快照")
+        case .authRequired:
+            return text("Reconnect needed", "需要重新连接")
+        case .supportedLimited:
+            return text("Limited data", "仅有限数据")
+        case .unsupported:
+            return text("Unsupported", "暂不支持")
+        case .error:
+            return text("Refresh failed", "刷新失败")
+        }
+    }
+
+    private var statusBadgeText: String {
+        switch snapshot.status {
+        case .ok:
+            return text("Connected", "已连接")
+        case .degraded:
+            return text("Delayed", "已延迟")
+        case .authRequired:
+            return text("Auth Required", "需要授权")
+        case .unsupported:
+            return text("Unsupported", "暂不支持")
+        case .supportedLimited:
+            return text("Limited", "受限")
+        case .error:
+            return text("Error", "错误")
+        }
+    }
+
+    private var providerSubtitleColor: Color {
+        switch snapshot.status {
+        case .ok:
+            return .green
+        case .degraded:
+            return .orange
+        case .authRequired, .error:
+            return .red
+        case .supportedLimited:
+            return .blue
+        case .unsupported:
+            return .secondary
+        }
+    }
+
+    private var shouldShowFooterText: Bool {
+        snapshot.providerMetadata == nil
+    }
+
     private func formattedCredits(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.maximumFractionDigits = value.rounded() == value ? 0 : 2
@@ -375,6 +443,16 @@ struct ProviderCardView: View {
         }
     }
 
+    private func zaiResetFallbackText(for window: ZAIQuotaWindow) -> String {
+        guard window.bucket == .fiveHour else {
+            return "—"
+        }
+        return text(
+            "Not exposed by the current official endpoint",
+            "官方接口目前未明确提供"
+        )
+    }
+
     private var dataAgeColor: Color {
         switch snapshot.fetchedAt.ageTint {
         case .fresh:
@@ -383,6 +461,36 @@ struct ProviderCardView: View {
             return Color(red: 0.90, green: 0.55, blue: 0.12)
         case .stale:
             return Color(red: 0.84, green: 0.22, blue: 0.22)
+        }
+    }
+
+    private func text(_ english: String, _ chinese: String) -> String {
+        settingsStore.text(english, chinese)
+    }
+}
+
+private struct ProviderLogoView: View {
+    let provider: ProviderKind
+
+    var body: some View {
+        Image(assetName)
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .renderingMode(provider == .bailian ? .template : .original)
+            .foregroundStyle(Color.black.opacity(0.82))
+            .scaledToFit()
+            .frame(width: 16, height: 16)
+    }
+
+    private var assetName: String {
+        switch provider {
+        case .bailian:
+            return "BailianLogo"
+        case .zaiGlobal:
+            return "ZAILogo"
+        case .openAIPlus:
+            return "OpenAILogo"
         }
     }
 }

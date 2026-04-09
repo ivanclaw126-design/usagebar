@@ -314,9 +314,10 @@ struct ZAIProvider: ProviderAdapter {
         }
 
         let itemReader = ProviderPayloadReader(root: selected)
-        let planName = itemReader.string(forKeyPaths: [
+        let rawPlanName = itemReader.string(forKeyPaths: [
             ["planName"], ["subscriptionName"], ["name"], ["productName"], ["title"]
         ]) ?? "Z.ai Plan"
+        let planName = normalizedPlanName(rawPlanName)
         let statusText = itemReader.string(forKeyPaths: [
             ["status"], ["state"], ["subscriptionStatus"], ["displayStatus"]
         ]) ?? "active"
@@ -343,6 +344,7 @@ struct ZAIProvider: ProviderAdapter {
         let rawType = reader.string(forKeyPaths: [["type"]]) ?? "UNKNOWN"
         let rawUnit = Int(reader.number(forKeyPaths: [["unit"]]) ?? -1)
         let rawNumber = Int(reader.number(forKeyPaths: [["number"]]) ?? -1)
+        let bucket = classifyBucket(type: rawType, unit: rawUnit, number: rawNumber)
         let limit = reader.number(forKeyPaths: [["limit"]]) ?? 0
         let used = reader.number(forKeyPaths: [["used"]]) ?? 0
         let remaining = max(reader.number(forKeyPaths: [["remaining"]]) ?? (limit - used), 0)
@@ -350,15 +352,43 @@ struct ZAIProvider: ProviderAdapter {
             guard limit > 0 else { return 0 }
             return min(max((used / limit) * 100, 0), 100)
         }()
-        let resetAt = reader.date(forKeyPaths: [["nextResetTime"], ["resetAt"], ["next_reset_time"]])
+        let resetValue = firstResetValue(in: json)
+        let resetAt = reader.date(forKeyPaths: [
+            ["nextResetTime"],
+            ["resetAt"],
+            ["next_reset_time"],
+            ["resetTime"],
+            ["nextRefreshTime"],
+            ["refreshTime"],
+            ["expireAt"],
+            ["endTime"],
+            ["windowEndTime"],
+            ["window", "resetAt"],
+            ["window", "nextResetTime"]
+        ]) ?? deepDate(
+            in: json,
+            keys: [
+                "nextResetTime",
+                "resetAt",
+                "next_reset_time",
+                "resetTime",
+                "nextRefreshTime",
+                "refreshTime",
+                "expireAt",
+                "endTime",
+                "windowEndTime"
+            ]
+        )
+        let resetDescription = resetAt == nil ? stringifyResetValue(resetValue) : nil
 
         return ZAIQuotaWindow(
-            bucket: classifyBucket(type: rawType, unit: rawUnit, number: rawNumber),
+            bucket: bucket,
             limit: limit,
             used: used,
             remaining: remaining,
             percentage: percentage,
             resetAt: resetAt,
+            resetDescription: resetDescription,
             rawType: rawType,
             rawUnit: rawUnit,
             rawNumber: rawNumber
@@ -376,6 +406,105 @@ struct ZAIProvider: ProviderAdapter {
         default:
             return .unmatched
         }
+    }
+
+    private static func normalizedPlanName(_ rawPlanName: String) -> String {
+        let lowered = rawPlanName.lowercased()
+        if lowered.contains("lite") {
+            return "Coding Plan Lite"
+        }
+        if lowered.contains("pro") {
+            return "Coding Plan Pro"
+        }
+        if lowered.contains("max") {
+            return "Coding Plan Max"
+        }
+        return rawPlanName
+    }
+
+    private static func deepDate(in value: Any, keys: Set<String>) -> Date? {
+        if let dictionary = value as? [String: Any] {
+            for (key, child) in dictionary {
+                if keys.contains(key), let date = parseDateValue(child) {
+                    return date
+                }
+                if let nested = deepDate(in: child, keys: keys) {
+                    return nested
+                }
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                if let nested = deepDate(in: child, keys: keys) {
+                    return nested
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func firstResetValue(in value: Any) -> Any? {
+        let keys: Set<String> = [
+            "nextResetTime",
+            "resetAt",
+            "next_reset_time",
+            "resetTime",
+            "nextRefreshTime",
+            "refreshTime",
+            "expireAt",
+            "endTime",
+            "windowEndTime"
+        ]
+
+        if let dictionary = value as? [String: Any] {
+            for (key, child) in dictionary {
+                if keys.contains(key) {
+                    return child
+                }
+                if let nested = firstResetValue(in: child) {
+                    return nested
+                }
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                if let nested = firstResetValue(in: child) {
+                    return nested
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func parseDateValue(_ value: Any) -> Date? {
+        if let number = value as? NSNumber {
+            let seconds = number.doubleValue
+            return Date(timeIntervalSince1970: seconds / (seconds > 4_000_000_000 ? 1000 : 1))
+        }
+        if let string = value as? String {
+            return parseDateString(string)
+        }
+        return nil
+    }
+
+    private static func stringifyResetValue(_ value: Any?) -> String? {
+        switch value {
+        case let string as String where string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false:
+            return string.trimmingCharacters(in: .whitespacesAndNewlines)
+        case let number as NSNumber:
+            return number.stringValue
+        default:
+            return nil
+        }
+    }
+
+    private static func parseDateString(_ string: String) -> Date? {
+        if let date = ISO8601DateFormatter().date(from: string) {
+            return date
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.date(from: string)
     }
 
     private static func makeSnapshot(
@@ -479,7 +608,7 @@ struct ZAIProvider: ProviderAdapter {
         let windowSummary = windows.isEmpty
             ? "parsedBuckets: none"
             : "parsedBuckets: " + windows.map {
-                "\($0.bucket.rawValue)(\($0.rawType)|unit=\($0.rawUnit)|number=\($0.rawNumber))"
+                "\($0.bucket.rawValue)(\($0.rawType)|unit=\($0.rawUnit)|number=\($0.rawNumber)|reset=\($0.resetAt != nil || $0.resetDescription != nil ? "yes" : "no"))"
             }.joined(separator: ", ")
         let endpointSummary = diagnostics.map {
             "\($0.name): \($0.statusText) [\($0.path)] - \($0.detail)"

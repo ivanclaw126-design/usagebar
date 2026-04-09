@@ -218,9 +218,10 @@ struct OpenAIPlusProvider: ProviderAdapter {
         }
 
         let diagnosticReport = diagnostics.map { "\($0.name): \($0.statusText) [\($0.path)] - \($0.detail)" }.joined(separator: "\n")
+        let resolvedPlanName = Self.normalizePlanName(reader.string(forKeyPaths: [["plan_type"]]) ?? account.plan)
         let metadata = CodexProviderMetadata(
             sourceLabel: "OAuth API",
-            planName: reader.string(forKeyPaths: [["plan_type"]]) ?? account.plan,
+            planName: resolvedPlanName,
             accountEmail: reader.string(forKeyPaths: [["email"]]) ?? account.email,
             windows: windows,
             creditsRemaining: credits,
@@ -232,21 +233,21 @@ struct OpenAIPlusProvider: ProviderAdapter {
             ?? "Codex connected"
 
         var detailParts = ["OAuth API"]
-        if let plan = account.plan {
+        if let plan = Self.normalizePlanName(account.plan) {
             detailParts.append(plan)
         }
         if let email = account.email {
             detailParts.append(email)
         }
-        if let credits {
+        if let credits, credits > 0 {
             detailParts.append("Credits \(formatCredits(credits))")
         }
 
         return ProviderBalanceSnapshot(
             provider: .openAIPlus,
             status: .ok,
-            remainingValue: credits.map(formatCredits),
-            remainingUnit: credits != nil ? "credits" : nil,
+            remainingValue: (credits ?? 0) > 0 ? credits.map(formatCredits) : nil,
+            remainingUnit: (credits ?? 0) > 0 ? "credits" : nil,
             usedValue: nil,
             resetAt: primaryWindow?.resetAt,
             fetchedAt: fetchedAt,
@@ -254,6 +255,11 @@ struct OpenAIPlusProvider: ProviderAdapter {
             detailText: detailParts.joined(separator: " • "),
             providerMetadata: ProviderSnapshotMetadata(codex: metadata)
         )
+    }
+
+    private static func normalizePlanName(_ plan: String?) -> String? {
+        guard let plan else { return nil }
+        return plan.lowercased() == "plus" ? "Plus" : plan
     }
 
     private func fetchFromWebSession(
@@ -284,12 +290,12 @@ struct OpenAIPlusProvider: ProviderAdapter {
     static func makeWebSnapshot(from json: Any, diagnostics: [ProviderEndpointDiagnostic] = []) throws -> ProviderBalanceSnapshot {
         let fetchedAt = Date()
         let reader = ProviderPayloadReader(root: json)
-        let plan = reader.string(forKeyPaths: [
+        let plan = Self.normalizePlanName(reader.string(forKeyPaths: [
             ["account", "plan_type"],
             ["account", "planType"],
             ["plan_type"],
             ["planType"]
-        ]) ?? "Plus"
+        ])) ?? "Plus"
         let resetAt = reader.date(forKeyPaths: [
             ["account", "usage_reset_at"],
             ["account", "message_cap_reset_at"],
@@ -340,7 +346,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
         let diagnosticReport = diagnostics.map { "\($0.name): \($0.statusText) [\($0.path)] - \($0.detail)" }.joined(separator: "\n")
         let metadata = CodexProviderMetadata(
             sourceLabel: sourceLabel,
-            planName: account.plan,
+            planName: Self.normalizePlanName(account.plan),
             accountEmail: account.email,
             windows: windows,
             creditsRemaining: rpc.creditsRemaining,
@@ -358,7 +364,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
 
         var detailParts: [String] = []
         detailParts.append(sourceLabel)
-        if let plan = account.plan {
+        if let plan = Self.normalizePlanName(account.plan) {
             detailParts.append(plan)
         }
         if let email = account.email {
@@ -412,7 +418,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
         let diagnosticReport = diagnostics.map { "\($0.name): \($0.statusText) [\($0.path)] - \($0.detail)" }.joined(separator: "\n")
         let metadata = CodexProviderMetadata(
             sourceLabel: sourceLabel,
-            planName: account.plan,
+            planName: Self.normalizePlanName(account.plan),
             accountEmail: account.email,
             windows: windows,
             creditsRemaining: status.credits,
@@ -424,7 +430,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
             ?? "Codex connected"
 
         var detailParts: [String] = [sourceLabel]
-        if let plan = account.plan {
+        if let plan = Self.normalizePlanName(account.plan) {
             detailParts.append(plan)
         }
         if let email = account.email {

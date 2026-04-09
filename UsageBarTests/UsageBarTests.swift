@@ -37,6 +37,7 @@ final class UsageBarTests: XCTestCase {
         let snapshot = try JSONDecoder().decode(SettingsSnapshot.self, from: legacyJSON)
 
         XCTAssertFalse(snapshot.didDismissOnboarding)
+        XCTAssertEqual(snapshot.language, .english)
         XCTAssertEqual(snapshot.providerConfigurations[.openAIPlus]?.authMode, .webSession)
     }
 

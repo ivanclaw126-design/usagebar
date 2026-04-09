@@ -58,6 +58,35 @@ final class ProviderStore: ObservableObject {
         refreshTask?.cancel()
     }
 
+    var menuBarSegments: [MenuBarTextSegment] {
+        let visibleProviders = ProviderKind.allCases.filter { settingsStore.configuration(for: $0).isEnabled }
+        let items = visibleProviders.compactMap { provider -> MenuBarSummaryItem? in
+            let snapshot = snapshots[provider] ?? .authRequired(provider: provider)
+            return settingsStore.snapshot.compactMenuBar
+                ? compactSummary(for: snapshot)
+                : expandedSummary(for: snapshot)
+        }
+
+        guard items.isEmpty == false else {
+            return [.init(text: "UsageBar", isEmphasized: false)]
+        }
+
+        var segments: [MenuBarTextSegment] = []
+        for (index, item) in items.enumerated() {
+            if index > 0 {
+                segments.append(.init(text: " | ", isEmphasized: false))
+            }
+            segments.append(.init(text: item.leadingText, isEmphasized: false))
+            if let emphasizedText = item.emphasizedText {
+                segments.append(.init(text: emphasizedText, isEmphasized: true))
+            }
+            if let trailingText = item.trailingText {
+                segments.append(.init(text: trailingText, isEmphasized: false))
+            }
+        }
+        return segments
+    }
+
     var menuBarTitle: String {
         let visibleProviders = ProviderKind.allCases.filter { settingsStore.configuration(for: $0).isEnabled }
         let pieces = visibleProviders.map { provider -> String in
@@ -71,6 +100,47 @@ final class ProviderStore: ObservableObject {
 
     var menuBarSymbolName: String {
         snapshots.values.contains(where: { $0.status == .error || $0.status == .authRequired }) ? "exclamationmark.circle" : "chart.bar.xaxis"
+    }
+
+    var menuBarGlyphSnapshot: MenuBarGlyphSnapshot {
+        let visibleSnapshots = ProviderKind.allCases
+            .filter { settingsStore.configuration(for: $0).isEnabled }
+            .compactMap { snapshots[$0] }
+
+        if let codex = visibleSnapshots.first(where: { $0.providerMetadata?.codex != nil }),
+           let primary = codex.providerMetadata?.codex?.windows.first(where: { $0.bucket == .fiveHour })?.percentage
+        {
+            let secondary = codex.providerMetadata?.codex?.windows.first(where: { $0.bucket == .weekly })?.percentage ?? 0
+            return MenuBarGlyphSnapshot(
+                primaryPercent: primary,
+                secondaryPercent: secondary,
+                hasIncident: codex.status == .error || codex.status == .authRequired
+            )
+        }
+
+        if let bailian = visibleSnapshots.first(where: { $0.providerMetadata?.bailian != nil }),
+           let primary = bailian.providerMetadata?.bailian?.windows.first(where: { $0.bucket == .fiveHour })?.percentage
+        {
+            let secondary = bailian.providerMetadata?.bailian?.windows.first(where: { $0.bucket == .weekly })?.percentage ?? 0
+            return MenuBarGlyphSnapshot(
+                primaryPercent: primary,
+                secondaryPercent: secondary,
+                hasIncident: bailian.status == .error || bailian.status == .authRequired
+            )
+        }
+
+        if let zai = visibleSnapshots.first(where: { $0.providerMetadata?.zai != nil }),
+           let primary = zai.providerMetadata?.zai?.windows.first(where: { $0.bucket == .fiveHour })?.percentage
+        {
+            let secondary = zai.providerMetadata?.zai?.windows.first(where: { $0.bucket == .weekly })?.percentage ?? 0
+            return MenuBarGlyphSnapshot(
+                primaryPercent: primary,
+                secondaryPercent: secondary,
+                hasIncident: zai.status == .error || zai.status == .authRequired
+            )
+        }
+
+        return MenuBarGlyphSnapshot(primaryPercent: 100, secondaryPercent: 60, hasIncident: false)
     }
 
     var orderedSnapshots: [ProviderBalanceSnapshot] {
@@ -88,29 +158,31 @@ final class ProviderStore: ObservableObject {
     func connectionStateText(for provider: ProviderKind) -> String {
         let diagnostics = diagnostics(for: provider)
         if diagnostics.isTestingConnection {
-            return "Testing connection..."
+            return settingsStore.text("Testing connection...", "正在测试连接...")
         }
 
         let snapshot = snapshots[provider] ?? .authRequired(provider: provider)
         switch snapshot.status {
         case .ok:
-            return "Connected"
+            return settingsStore.text("Connected", "已连接")
         case .degraded:
             if provider == .zaiGlobal {
-                return "Connected with partial quota data"
+                return settingsStore.text("Connected with partial quota data", "已连接，但配额数据不完整")
             }
             if provider == .openAIPlus {
-                return "Connected with fallback Codex data"
+                return settingsStore.text("Connected with fallback Codex data", "已连接，但使用了回退的 Codex 数据")
             }
-            return "Connected with fallback data"
+            return settingsStore.text("Connected with fallback data", "已连接，但使用了回退数据")
         case .authRequired:
-            return hasCredential(for: provider) ? "Saved credential needs attention" : "Not connected"
+            return hasCredential(for: provider)
+                ? settingsStore.text("Saved credential needs attention", "已保存的凭据需要处理")
+                : settingsStore.text("Not connected", "未连接")
         case .unsupported:
-            return "Partially supported"
+            return settingsStore.text("Partially supported", "部分支持")
         case .supportedLimited:
-            return "Connected with limited visibility"
+            return settingsStore.text("Connected with limited visibility", "已连接，但可见数据有限")
         case .error:
-            return "Connection failed"
+            return settingsStore.text("Connection failed", "连接失败")
         }
     }
 
@@ -158,7 +230,10 @@ final class ProviderStore: ObservableObject {
             diagnostics[provider] = current
             snapshots[provider] = .authRequired(provider: provider)
             persistCache()
-            toastMessage = "\(provider.displayName) credential saved to Keychain. Press Test Connection to verify it."
+            toastMessage = settingsStore.text(
+                "\(provider.displayName) credential saved to Keychain. Press Test Connection to verify it.",
+                "\(provider.displayName) 凭据已保存到 Keychain。请点击测试连接进行验证。"
+            )
         } catch {
             toastMessage = error.localizedDescription
         }
@@ -169,7 +244,10 @@ final class ProviderStore: ObservableObject {
         snapshots[provider] = .authRequired(provider: provider)
         diagnostics[provider] = .empty
         persistCache()
-        toastMessage = "\(provider.displayName) credential removed."
+        toastMessage = settingsStore.text(
+            "\(provider.displayName) credential removed.",
+            "\(provider.displayName) 凭据已移除。"
+        )
     }
 
     func hasCredential(for provider: ProviderKind) -> Bool {
@@ -315,69 +393,107 @@ final class ProviderStore: ObservableObject {
     }
 
     private func compactLabel(for snapshot: ProviderBalanceSnapshot) -> String {
+        compactSummary(for: snapshot)?.joinedText ?? snapshot.provider.shortLabel
+    }
+
+    private func compactSummary(for snapshot: ProviderBalanceSnapshot) -> MenuBarSummaryItem? {
         switch snapshot.status {
         case .authRequired:
-            return "\(snapshot.provider.shortLabel) !"
+            return .init(leadingText: "\(snapshot.provider.shortLabel) ", emphasizedText: "!", trailingText: nil)
         case .supportedLimited:
             if let resetAt = snapshot.resetAt {
-                return "\(snapshot.provider.shortLabel) Reset \(resetAt.veryShortRelativeLabel)"
+                return .init(leadingText: "\(snapshot.provider.shortLabel) Reset \(resetAt.veryShortRelativeLabel)", emphasizedText: nil, trailingText: nil)
             } else {
-                return "\(snapshot.provider.shortLabel) Limited"
+                return .init(leadingText: "\(snapshot.provider.shortLabel) Limited", emphasizedText: nil, trailingText: nil)
             }
         case .ok, .degraded, .error, .unsupported:
             if let window = snapshot.providerMetadata?.bailian?.primaryWindow {
-                return "\(snapshot.provider.shortLabel) \(window.bucket.menuBarLabel) \(Int(window.percentage.rounded()))%"
+                return percentageSummary(
+                    prefix: "\(snapshot.provider.shortLabel) \(window.bucket.menuBarLabel) ",
+                    percentage: Int(window.percentage.rounded())
+                )
             }
             if let window = snapshot.providerMetadata?.zai?.primaryWindow {
-                return "\(snapshot.provider.shortLabel) \(window.bucket.menuBarLabel) \(Int(window.percentage.rounded()))%"
+                return percentageSummary(
+                    prefix: "\(snapshot.provider.shortLabel) \(window.bucket.menuBarLabel) ",
+                    percentage: Int(window.percentage.rounded())
+                )
             }
             if let window = snapshot.providerMetadata?.codex?.primaryWindow {
-                return "\(snapshot.provider.shortLabel) \(window.bucket.menuBarLabel) \(Int(window.percentage.rounded()))%"
+                return percentageSummary(
+                    prefix: "\(snapshot.provider.shortLabel) \(window.bucket.menuBarLabel) ",
+                    percentage: Int(window.percentage.rounded())
+                )
             }
-            if let credits = snapshot.providerMetadata?.codex?.creditsRemaining {
-                return "\(snapshot.provider.shortLabel) \(formattedCredits(credits)) cr"
+            if let credits = snapshot.providerMetadata?.codex?.creditsRemaining, credits > 0 {
+                return .init(leadingText: "\(snapshot.provider.shortLabel) \(formattedCredits(credits)) cr", emphasizedText: nil, trailingText: nil)
             }
             if let remaining = snapshot.remainingValue {
-                return "\(snapshot.provider.shortLabel) \(remaining)\(snapshot.remainingUnit.map { " \($0)" } ?? "")"
+                return .init(
+                    leadingText: "\(snapshot.provider.shortLabel) \(remaining)\(snapshot.remainingUnit.map { " \($0)" } ?? "")",
+                    emphasizedText: nil,
+                    trailingText: nil
+                )
             } else if let resetAt = snapshot.resetAt {
-                return "\(snapshot.provider.shortLabel) Reset \(resetAt.veryShortRelativeLabel)"
+                return .init(leadingText: "\(snapshot.provider.shortLabel) Reset \(resetAt.veryShortRelativeLabel)", emphasizedText: nil, trailingText: nil)
             } else {
-                return "\(snapshot.provider.shortLabel) \(snapshot.status.badgeText)"
+                return .init(leadingText: "\(snapshot.provider.shortLabel) \(snapshot.status.badgeText)", emphasizedText: nil, trailingText: nil)
             }
         }
     }
 
     private func expandedLabel(for snapshot: ProviderBalanceSnapshot) -> String {
+        expandedSummary(for: snapshot)?.joinedText ?? snapshot.provider.displayName
+    }
+
+    private func expandedSummary(for snapshot: ProviderBalanceSnapshot) -> MenuBarSummaryItem? {
         switch snapshot.status {
         case .authRequired:
-            return "\(snapshot.provider.displayName): auth"
+            return .init(leadingText: "\(snapshot.provider.displayName): auth", emphasizedText: nil, trailingText: nil)
         case .supportedLimited:
             if let resetAt = snapshot.resetAt {
-                return "\(snapshot.provider.displayName): resets \(resetAt.veryShortRelativeLabel)"
+                return .init(leadingText: "\(snapshot.provider.displayName): resets \(resetAt.veryShortRelativeLabel)", emphasizedText: nil, trailingText: nil)
             } else {
-                return "\(snapshot.provider.displayName): limited"
+                return .init(leadingText: "\(snapshot.provider.displayName): limited", emphasizedText: nil, trailingText: nil)
             }
         case .ok, .degraded, .error, .unsupported:
             if let window = snapshot.providerMetadata?.bailian?.primaryWindow {
-                return "\(snapshot.provider.displayName): \(window.bucket.menuBarLabel) \(Int(window.percentage.rounded()))%"
+                return percentageSummary(
+                    prefix: "\(snapshot.provider.displayName): \(window.bucket.menuBarLabel) ",
+                    percentage: Int(window.percentage.rounded())
+                )
             }
             if let window = snapshot.providerMetadata?.zai?.primaryWindow {
-                return "\(snapshot.provider.displayName): \(window.bucket.menuBarLabel) \(Int(window.percentage.rounded()))%"
+                return percentageSummary(
+                    prefix: "\(snapshot.provider.displayName): \(window.bucket.menuBarLabel) ",
+                    percentage: Int(window.percentage.rounded())
+                )
             }
             if let window = snapshot.providerMetadata?.codex?.primaryWindow {
-                return "\(snapshot.provider.displayName): \(window.bucket.menuBarLabel) \(Int(window.percentage.rounded()))%"
+                return percentageSummary(
+                    prefix: "\(snapshot.provider.displayName): \(window.bucket.menuBarLabel) ",
+                    percentage: Int(window.percentage.rounded())
+                )
             }
-            if let credits = snapshot.providerMetadata?.codex?.creditsRemaining {
-                return "\(snapshot.provider.displayName): \(formattedCredits(credits)) credits"
+            if let credits = snapshot.providerMetadata?.codex?.creditsRemaining, credits > 0 {
+                return .init(leadingText: "\(snapshot.provider.displayName): \(formattedCredits(credits)) credits", emphasizedText: nil, trailingText: nil)
             }
             if let remaining = snapshot.remainingValue {
-                return "\(snapshot.provider.displayName): \(remaining)\(snapshot.remainingUnit.map { " \($0)" } ?? "")"
+                return .init(
+                    leadingText: "\(snapshot.provider.displayName): \(remaining)\(snapshot.remainingUnit.map { " \($0)" } ?? "")",
+                    emphasizedText: nil,
+                    trailingText: nil
+                )
             }
             if let resetAt = snapshot.resetAt {
-                return "\(snapshot.provider.displayName): resets \(resetAt.veryShortRelativeLabel)"
+                return .init(leadingText: "\(snapshot.provider.displayName): resets \(resetAt.veryShortRelativeLabel)", emphasizedText: nil, trailingText: nil)
             }
-            return "\(snapshot.provider.displayName): \(snapshot.status.badgeText)"
+            return .init(leadingText: "\(snapshot.provider.displayName): \(snapshot.status.badgeText)", emphasizedText: nil, trailingText: nil)
         }
+    }
+
+    private func percentageSummary(prefix: String, percentage: Int) -> MenuBarSummaryItem {
+        .init(leadingText: prefix, emphasizedText: "\(percentage)%", trailingText: nil)
     }
 
     private func scheduleAutomaticRefresh() {
@@ -400,4 +516,26 @@ final class ProviderStore: ObservableObject {
         formatter.numberStyle = .decimal
         return formatter.string(from: value as NSNumber) ?? String(format: "%.2f", value)
     }
+}
+
+struct MenuBarGlyphSnapshot {
+    var primaryPercent: Double
+    var secondaryPercent: Double
+    var hasIncident: Bool
+}
+
+struct MenuBarSummaryItem {
+    var leadingText: String
+    var emphasizedText: String?
+    var trailingText: String?
+
+    var joinedText: String {
+        leadingText + (emphasizedText ?? "") + (trailingText ?? "")
+    }
+}
+
+struct MenuBarTextSegment: Identifiable {
+    let id = UUID()
+    let text: String
+    let isEmphasized: Bool
 }

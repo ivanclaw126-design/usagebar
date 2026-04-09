@@ -29,6 +29,11 @@ final class SettingsStore: ObservableObject {
         persist()
     }
 
+    func setLanguage(_ language: AppLanguage) {
+        snapshot.language = language
+        persist()
+    }
+
     func dismissOnboarding() {
         snapshot.didDismissOnboarding = true
         persist()
@@ -53,5 +58,11 @@ final class SettingsStore: ObservableObject {
     private func persist() {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         defaults.set(data, forKey: key)
+    }
+}
+
+extension SettingsStore {
+    func text(_ english: String, _ chinese: String) -> String {
+        snapshot.language == .chinese ? chinese : english
     }
 }

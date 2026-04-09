@@ -84,6 +84,20 @@ enum ProviderAuthMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum AppLanguage: String, Codable, CaseIterable, Identifiable {
+    case english
+    case chinese
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .english: "English"
+        case .chinese: "中文"
+        }
+    }
+}
+
 struct ProviderBalanceSnapshot: Equatable, Codable, Identifiable {
     var provider: ProviderKind
     var status: ProviderStatus
@@ -297,6 +311,7 @@ struct ZAIQuotaWindow: Equatable, Codable, Identifiable {
     var remaining: Double
     var percentage: Double
     var resetAt: Date?
+    var resetDescription: String?
     var rawType: String
     var rawUnit: Int
     var rawNumber: Int
@@ -344,21 +359,25 @@ struct SettingsSnapshot: Codable, Equatable {
     var compactMenuBar: Bool
     var providerConfigurations: [ProviderKind: ProviderConfiguration]
     var didDismissOnboarding: Bool
+    var language: AppLanguage
 
     init(
         compactMenuBar: Bool,
         providerConfigurations: [ProviderKind: ProviderConfiguration],
-        didDismissOnboarding: Bool
+        didDismissOnboarding: Bool,
+        language: AppLanguage
     ) {
         self.compactMenuBar = compactMenuBar
         self.providerConfigurations = providerConfigurations
         self.didDismissOnboarding = didDismissOnboarding
+        self.language = language
     }
 
     enum CodingKeys: String, CodingKey {
         case compactMenuBar
         case providerConfigurations
         case didDismissOnboarding
+        case language
     }
 
     init(from decoder: Decoder) throws {
@@ -367,6 +386,7 @@ struct SettingsSnapshot: Codable, Equatable {
         providerConfigurations = try container.decodeIfPresent([ProviderKind: ProviderConfiguration].self, forKey: .providerConfigurations)
             ?? Dictionary(uniqueKeysWithValues: ProviderKind.allCases.map { ($0, .default(for: $0)) })
         didDismissOnboarding = try container.decodeIfPresent(Bool.self, forKey: .didDismissOnboarding) ?? false
+        language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .english
     }
 
     static let `default` = SettingsSnapshot(
@@ -374,7 +394,8 @@ struct SettingsSnapshot: Codable, Equatable {
         providerConfigurations: Dictionary(
             uniqueKeysWithValues: ProviderKind.allCases.map { ($0, .default(for: $0)) }
         ),
-        didDismissOnboarding: false
+        didDismissOnboarding: false,
+        language: .english
     )
 }
 

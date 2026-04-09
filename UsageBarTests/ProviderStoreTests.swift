@@ -77,6 +77,52 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(store.lastRefreshAt, cachedSnapshot.fetchedAt)
     }
 
+    func testRefreshIfNeededSkipsWhenWithinAutomaticInterval() async {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let cacheStore = SnapshotCacheStore(defaults: defaults)
+        let fetchedAt = Date()
+        cacheStore.save(snapshots: [.bailian: Self.okSnapshot(for: .bailian)], lastRefreshAt: fetchedAt)
+        let adapter = CountingProviderAdapter(provider: .bailian, snapshot: Self.okSnapshot(for: .bailian))
+        let store = ProviderStore(
+            settingsStore: settingsStore,
+            credentialStore: InMemoryCredentialStore(values: [.bailian: StoredCredential(kind: .apiKey, value: "token")]),
+            cacheStore: cacheStore,
+            sessionCapture: SessionCapture(),
+            adapters: [adapter],
+            autoRefreshEnabled: false
+        )
+
+        await store.refreshIfNeeded(force: false)
+
+        let count = await adapter.callCount
+        XCTAssertEqual(count, 0)
+    }
+
+    func testRefreshIfNeededRunsWhenAutomaticIntervalHasElapsed() async {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let cacheStore = SnapshotCacheStore(defaults: defaults)
+        let staleDate = Date().addingTimeInterval(-(RefreshPolicy.automaticInterval + 5))
+        cacheStore.save(snapshots: [.bailian: Self.okSnapshot(for: .bailian)], lastRefreshAt: staleDate)
+        let adapter = CountingProviderAdapter(provider: .bailian, snapshot: Self.okSnapshot(for: .bailian))
+        let store = ProviderStore(
+            settingsStore: settingsStore,
+            credentialStore: InMemoryCredentialStore(values: [.bailian: StoredCredential(kind: .apiKey, value: "token")]),
+            cacheStore: cacheStore,
+            sessionCapture: SessionCapture(),
+            adapters: [adapter],
+            autoRefreshEnabled: false
+        )
+
+        await store.refreshIfNeeded(force: false)
+
+        let count = await adapter.callCount
+        XCTAssertEqual(count, 1)
+    }
+
     private static func okSnapshot(for provider: ProviderKind) -> ProviderBalanceSnapshot {
         ProviderBalanceSnapshot(
             provider: provider,
@@ -124,5 +170,21 @@ private struct MockProviderAdapter: ProviderAdapter {
         case .failure(let error):
             throw error
         }
+    }
+}
+
+private actor CountingProviderAdapter: ProviderAdapter {
+    let provider: ProviderKind
+    let snapshot: ProviderBalanceSnapshot
+    private(set) var callCount = 0
+
+    init(provider: ProviderKind, snapshot: ProviderBalanceSnapshot) {
+        self.provider = provider
+        self.snapshot = snapshot
+    }
+
+    func fetchBalance(using credential: StoredCredential?) async throws -> ProviderBalanceSnapshot {
+        callCount += 1
+        return snapshot
     }
 }
