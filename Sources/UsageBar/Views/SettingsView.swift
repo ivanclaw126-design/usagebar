@@ -41,6 +41,22 @@ struct SettingsView: View {
                         set: { settingsStore.setCompactMenuBar($0) }
                     ))
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle(text("Launch at login", "开机自动启动"), isOn: Binding(
+                            get: { settingsStore.snapshot.launchAtLogin },
+                            set: { settingsStore.setLaunchAtLogin($0) }
+                        ))
+                        if settingsStore.launchAtLoginErrorMessage == nil {
+                            Text(settingsStore.launchAtLoginStatusText())
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(settingsStore.launchAtLoginStatusText())
+                                .font(.caption)
+                                .foregroundStyle(.red.opacity(0.85))
+                        }
+                    }
+
                     ForEach(ProviderKind.allCases) { provider in
                         providerSection(for: provider)
                     }

@@ -40,7 +40,13 @@ struct DashboardView: View {
                     ProviderCardView(
                         snapshot: snapshot,
                         hasCredential: providerStore.hasCredential(for: snapshot.provider),
-                        reconnectAction: { providerStore.beginSessionCapture(for: snapshot.provider) }
+                        reconnectAction: {
+                            AppDelegate.bringAppToFront()
+                            openSettings()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                providerStore.beginSessionCapture(for: snapshot.provider)
+                            }
+                        }
                     )
                 }
                 footer
@@ -49,14 +55,6 @@ struct DashboardView: View {
         }
         .onReceive(countdownTimer) { value in
             currentTime = value
-        }
-        .sheet(item: Binding(
-            get: { providerStore.activeSessionProvider },
-            set: { _ in providerStore.endSessionCapture() }
-        )) { provider in
-            SessionCaptureContainer(provider: provider)
-                .environmentObject(providerStore)
-                .environmentObject(settingsStore)
         }
     }
 
@@ -164,6 +162,11 @@ struct DashboardView: View {
                     }
                 }
                 .buttonStyle(.bordered)
+
+                Button(text("Quit", "退出")) {
+                    AppDelegate.terminateApp()
+                }
+                .buttonStyle(.borderless)
 
                 Spacer()
 

@@ -9,6 +9,7 @@ struct UsageBarApp: App {
     init() {
         let settingsStore = SettingsStore()
         _settingsStore = StateObject(wrappedValue: settingsStore)
+        settingsStore.syncLaunchAtLoginPreference()
         _providerStore = StateObject(
             wrappedValue: ProviderStore(
                 settingsStore: settingsStore,

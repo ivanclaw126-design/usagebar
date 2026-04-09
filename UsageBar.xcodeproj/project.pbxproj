@@ -31,6 +31,7 @@
 		A00000000000000000000046 /* ProviderNumberFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000026 /* ProviderNumberFormatter.swift */; };
 		A00000000000000000000047 /* ProviderStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000027 /* ProviderStoreTests.swift */; };
 		A00000000000000000000048 /* SnapshotCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000028 /* SnapshotCacheStore.swift */; };
+		A00000000000000000000049 /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000029 /* LaunchAtLoginManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		A00000000000000000000026 /* ProviderNumberFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderNumberFormatter.swift; sourceTree = "<group>"; };
 		A00000000000000000000027 /* ProviderStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderStoreTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000028 /* SnapshotCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCacheStore.swift; sourceTree = "<group>"; };
+		A00000000000000000000029 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +166,7 @@
 			children = (
 				A00000000000000000000018 /* CredentialStore.swift */,
 				A00000000000000000000019 /* Formatting.swift */,
+				A00000000000000000000029 /* LaunchAtLoginManager.swift */,
 				A0000000000000000000001A /* ProviderStore.swift */,
 				A00000000000000000000028 /* SnapshotCacheStore.swift */,
 				A0000000000000000000001B /* SessionCapture.swift */,
@@ -286,6 +289,7 @@
 				A00000000000000000000039 /* Formatting.swift in Sources */,
 				A0000000000000000000003A /* ProviderStore.swift in Sources */,
 				A00000000000000000000048 /* SnapshotCacheStore.swift in Sources */,
+				A00000000000000000000049 /* LaunchAtLoginManager.swift in Sources */,
 				A0000000000000000000003B /* SessionCapture.swift in Sources */,
 				A0000000000000000000003C /* SettingsStore.swift in Sources */,
 				A0000000000000000000003D /* DashboardView.swift in Sources */,

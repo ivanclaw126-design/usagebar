@@ -96,6 +96,16 @@ struct BailianProvider: ProviderAdapter {
             )
         ]
 
+        let liveResult = await fetchCodingPlanUsageResultWithSession(cookie: state.cookies)
+        diagnostics.append(contentsOf: liveResult.diagnostics)
+        if let payload = liveResult.value {
+            return Self.makeSessionSnapshot(
+                from: payload,
+                diagnostics: diagnostics,
+                host: consoleHost
+            )
+        }
+
         if let payload = try? Self.parseUsageResponse(fromRenderedText: state.renderedText) {
             return Self.makeSessionSnapshot(
                 from: payload,
@@ -112,24 +122,8 @@ struct BailianProvider: ProviderAdapter {
             )
         }
 
-        let liveResult = await fetchCodingPlanUsageResultWithSession(cookie: state.cookies)
-        diagnostics.append(contentsOf: liveResult.diagnostics)
         if liveResult.failure?.isAuthorizationFailure == true {
-            if let payload = try? Self.parseUsageResponse(fromHTML: state.html) {
-                return Self.makeSessionSnapshot(
-                    from: payload,
-                    diagnostics: diagnostics,
-                    host: consoleHost
-                )
-            }
             throw ProviderError.unauthorized
-        }
-        if let payload = liveResult.value {
-            return Self.makeSessionSnapshot(
-                from: payload,
-                diagnostics: diagnostics,
-                host: consoleHost
-            )
         }
 
         throw BailianProviderError(

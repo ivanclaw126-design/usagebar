@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="160" y1="80" x2="880" y2="950" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111111"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+    <linearGradient id="crab" x1="250" y1="250" x2="770" y2="840" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff5a34"/>
+      <stop offset="0.45" stop-color="#ff2f1f"/>
+      <stop offset="1" stop-color="#d81416"/>
+    </linearGradient>
+    <linearGradient id="crabDark" x1="250" y1="250" x2="700" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d21e1f"/>
+      <stop offset="1" stop-color="#a30f16"/>
+    </linearGradient>
+    <linearGradient id="meter" x1="360" y1="520" x2="760" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ba0ff"/>
+      <stop offset="1" stop-color="#2b75d6"/>
+    </linearGradient>
+    <linearGradient id="meterDark" x1="360" y1="520" x2="740" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2d65be"/>
+      <stop offset="1" stop-color="#184c9e"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)">
+    <path d="M474 322C422 206 301 172 214 236c-35 26-63 66-78 116 35-27 76-41 118-41 74 0 148 41 203 111" fill="none" stroke="#ff4730" stroke-width="22" stroke-linecap="round"/>
+    <path d="M559 327C622 210 744 173 836 237c35 24 64 63 80 109-36-25-77-38-119-38-77 0-154 44-210 116" fill="none" stroke="#ff4730" stroke-width="22" stroke-linecap="round"/>
+
+    <path d="M342 715c0-180 98-363 214-363 120 0 204 166 204 339 0 103-42 186-114 217-28 12-60 19-94 19-132 0-210-88-210-212z" fill="url(#crab)"/>
+    <path d="M399 486c32-88 92-135 170-135 73 0 124 38 154 114 6 14 10 31 13 49-51 21-111 32-179 32-67 0-124-14-170-42 0-6 4-12 12-18z" fill="url(#crabDark)"/>
+
+    <circle cx="445" cy="473" r="48" fill="#ffffff"/>
+    <circle cx="462" cy="481" r="23" fill="#141414"/>
+    <circle cx="601" cy="472" r="48" fill="#ffffff"/>
+    <circle cx="618" cy="480" r="23" fill="#141414"/>
+    <path d="M478 535c14 18 34 27 59 27 25 0 45-9 58-27" fill="none" stroke="#1b0708" stroke-width="16" stroke-linecap="round"/>
+
+    <path d="M733 558c48-48 84-70 112-66 23 3 37 18 37 43 0 31-18 57-47 76 19 7 33 22 40 45 10 34-6 61-38 79-54 31-115 18-155-33-31-39-25-92 51-144z" fill="url(#crab)"/>
+    <path d="M229 560c-60 31-102 71-121 118-10 25-7 46 9 61 18 17 42 17 74 0 26-14 47-35 65-63 20-30 37-63 54-99" fill="url(#crab)"/>
+    <path d="M295 586c-61 35-108 72-141 111" fill="none" stroke="#ff4730" stroke-width="26" stroke-linecap="round"/>
+    <path d="M285 686c-56 38-91 82-107 131" fill="none" stroke="#ff4730" stroke-width="26" stroke-linecap="round"/>
+    <path d="M296 775c-43 39-63 79-61 122" fill="none" stroke="#ff4730" stroke-width="26" stroke-linecap="round"/>
+
+    <g transform="rotate(-6 595 700)">
+      <rect x="377" y="550" width="428" height="328" rx="54" fill="url(#meter)"/>
+      <rect x="402" y="577" width="379" height="276" rx="38" fill="url(#meterDark)" fill-opacity="0.55"/>
+      <rect x="410" y="584" width="353" height="140" rx="28" fill="#dff4bf"/>
+      <rect x="431" y="606" width="313" height="96" rx="20" fill="#e6f8c6"/>
+      <text x="587" y="653" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="52" font-weight="700" fill="#111111">openclaw</text>
+      <text x="587" y="709" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="44" font-weight="700" fill="#111111">api调用量限额</text>
+      <circle cx="582" cy="804" r="88" fill="#1d63b8"/>
+      <circle cx="582" cy="804" r="66" fill="#2f76d1"/>
+      <text x="582" y="836" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="90" font-weight="800" fill="#ffffff">3</text>
+      <circle cx="716" cy="800" r="24" fill="#ffb42e"/>
+    </g>
+
+    <path d="M324 445c-15 48-9 91 18 129" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+    <path d="M711 388c-17 4-29 20-33 48" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+  </g>
+</svg>

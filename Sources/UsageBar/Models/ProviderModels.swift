@@ -357,17 +357,20 @@ struct ProviderConfiguration: Codable, Equatable {
 
 struct SettingsSnapshot: Codable, Equatable {
     var compactMenuBar: Bool
+    var launchAtLogin: Bool
     var providerConfigurations: [ProviderKind: ProviderConfiguration]
     var didDismissOnboarding: Bool
     var language: AppLanguage
 
     init(
         compactMenuBar: Bool,
+        launchAtLogin: Bool,
         providerConfigurations: [ProviderKind: ProviderConfiguration],
         didDismissOnboarding: Bool,
         language: AppLanguage
     ) {
         self.compactMenuBar = compactMenuBar
+        self.launchAtLogin = launchAtLogin
         self.providerConfigurations = providerConfigurations
         self.didDismissOnboarding = didDismissOnboarding
         self.language = language
@@ -375,6 +378,7 @@ struct SettingsSnapshot: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case compactMenuBar
+        case launchAtLogin
         case providerConfigurations
         case didDismissOnboarding
         case language
@@ -383,6 +387,7 @@ struct SettingsSnapshot: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         compactMenuBar = try container.decodeIfPresent(Bool.self, forKey: .compactMenuBar) ?? true
+        launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
         providerConfigurations = try container.decodeIfPresent([ProviderKind: ProviderConfiguration].self, forKey: .providerConfigurations)
             ?? Dictionary(uniqueKeysWithValues: ProviderKind.allCases.map { ($0, .default(for: $0)) })
         didDismissOnboarding = try container.decodeIfPresent(Bool.self, forKey: .didDismissOnboarding) ?? false
@@ -391,6 +396,7 @@ struct SettingsSnapshot: Codable, Equatable {
 
     static let `default` = SettingsSnapshot(
         compactMenuBar: true,
+        launchAtLogin: false,
         providerConfigurations: Dictionary(
             uniqueKeysWithValues: ProviderKind.allCases.map { ($0, .default(for: $0)) }
         ),
