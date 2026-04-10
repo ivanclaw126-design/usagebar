@@ -27,6 +27,11 @@ final class UsageBarTests: XCTestCase {
         XCTAssertEqual(Date().addingTimeInterval(-90_000).ageTint, .stale)
     }
 
+    func testBailianSnapshotFreshnessThresholds() {
+        XCTAssertEqual(Date().addingTimeInterval(-(4 * 60 * 60)).bailianSnapshotFreshness, .valid)
+        XCTAssertEqual(Date().addingTimeInterval(-(6 * 60 * 60)).bailianSnapshotFreshness, .expired)
+    }
+
     func testLegacySettingsSnapshotDecodesWithOnboardingDefault() throws {
         let current = SettingsSnapshot.default
         let encoded = try JSONEncoder().encode(current)

@@ -6,6 +6,7 @@ final class SessionCapture {
     func makeWebView(for provider: ProviderKind) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        config.preferences.javaScriptCanOpenWindowsAutomatically = true
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.load(URLRequest(url: provider.loginURL))
         return webView

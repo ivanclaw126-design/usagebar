@@ -125,6 +125,49 @@ final class ProviderParsingTests: XCTestCase {
         XCTAssertNotNil(response.windows[2].resetAt)
     }
 
+    func testBailianSavedSessionSnapshotSurvivesLiveAuthFailure() throws {
+        let payload = BailianUsageResponse(
+            planName: "Coding Plan Lite",
+            statusText: "Rendered Page",
+            windows: [
+                BailianUsageWindow(
+                    bucket: .fiveHour,
+                    limit: 100,
+                    used: 3,
+                    remaining: 97,
+                    percentage: 3,
+                    resetAt: ISO8601DateFormatter().date(from: "2026-04-10T11:21:18Z"),
+                    rawLabel: "5 Hours",
+                    rawType: "rendered-text"
+                )
+            ],
+            remainingValue: nil,
+            usedValue: nil,
+            remainingUnit: nil,
+            resetAt: nil,
+        )
+        let capturedAt = ISO8601DateFormatter().date(from: "2026-04-10T10:50:00Z")!
+        let snapshot = BailianProvider.makeSavedSessionSnapshot(
+            from: payload,
+            diagnostics: [
+                ProviderEndpointDiagnostic(
+                    name: "Saved Session",
+                    path: "https://bailian.console.aliyun.com",
+                    statusText: "OK",
+                    detail: "Loaded saved Bailian page state from the active login session."
+                )
+            ],
+            host: "https://bailian.console.aliyun.com",
+            capturedAt: capturedAt,
+            liveAuthorizationFailed: true
+        )
+
+        XCTAssertEqual(snapshot.status, ProviderStatus.degraded)
+        XCTAssertEqual(snapshot.fetchedAt, capturedAt)
+        XCTAssertEqual(snapshot.providerMetadata?.bailian?.statusText, "Saved Session")
+        XCTAssertTrue(snapshot.detailText.contains("Live session authorization needs to be refreshed."))
+    }
+
     func testZAISnapshotComputesRemainingFromQuotaAndUsage() throws {
         let payload: [String: Any] = [
             "data": [

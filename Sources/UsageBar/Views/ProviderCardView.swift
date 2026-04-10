@@ -345,21 +345,33 @@ struct ProviderCardView: View {
     }
 
     private var statusColor: Color {
+        if isBailianRecentSavedSnapshot {
+            return .green
+        }
+        if isBailianExpiredSavedSnapshot {
+            return .red
+        }
         switch snapshot.status {
         case .ok:
-            .green
+            return Color.green
         case .degraded:
-            .yellow
+            return Color.yellow
         case .authRequired, .error:
-            .red
+            return Color.red
         case .supportedLimited:
-            .blue
+            return Color.blue
         case .unsupported:
-            .secondary
+            return Color.secondary
         }
     }
 
     private var providerSubtitleText: String {
+        if isBailianRecentSavedSnapshot {
+            return text("Saved snapshot is still current", "已保存快照仍在有效期内")
+        }
+        if isBailianExpiredSavedSnapshot {
+            return text("Saved snapshot expired", "已保存快照已过期")
+        }
         switch snapshot.status {
         case .ok:
             return text("Live usage synced", "已同步最新用量")
@@ -377,6 +389,12 @@ struct ProviderCardView: View {
     }
 
     private var statusBadgeText: String {
+        if isBailianRecentSavedSnapshot {
+            return text("Connected", "已连接")
+        }
+        if isBailianExpiredSavedSnapshot {
+            return text("Expired", "已过期")
+        }
         switch snapshot.status {
         case .ok:
             return text("Connected", "已连接")
@@ -394,6 +412,12 @@ struct ProviderCardView: View {
     }
 
     private var providerSubtitleColor: Color {
+        if isBailianRecentSavedSnapshot {
+            return .green
+        }
+        if isBailianExpiredSavedSnapshot {
+            return .red
+        }
         switch snapshot.status {
         case .ok:
             return .green
@@ -454,6 +478,12 @@ struct ProviderCardView: View {
     }
 
     private var dataAgeColor: Color {
+        if isBailianRecentSavedSnapshot {
+            return Color(red: 0.16, green: 0.62, blue: 0.34)
+        }
+        if isBailianExpiredSavedSnapshot {
+            return Color(red: 0.84, green: 0.22, blue: 0.22)
+        }
         switch snapshot.fetchedAt.ageTint {
         case .fresh:
             return Color(red: 0.16, green: 0.62, blue: 0.34)
@@ -466,6 +496,18 @@ struct ProviderCardView: View {
 
     private func text(_ english: String, _ chinese: String) -> String {
         settingsStore.text(english, chinese)
+    }
+
+    private var isBailianSavedSnapshot: Bool {
+        snapshot.provider == .bailian && snapshot.providerMetadata?.bailian?.statusText == "Saved Session"
+    }
+
+    private var isBailianRecentSavedSnapshot: Bool {
+        isBailianSavedSnapshot && snapshot.fetchedAt.bailianSnapshotFreshness == .valid
+    }
+
+    private var isBailianExpiredSavedSnapshot: Bool {
+        isBailianSavedSnapshot && snapshot.fetchedAt.bailianSnapshotFreshness == .expired
     }
 }
 
