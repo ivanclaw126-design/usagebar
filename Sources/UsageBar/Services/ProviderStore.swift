@@ -308,7 +308,18 @@ final class ProviderStore: ObservableObject {
             current.lastDiagnosticReport = nil
             diagnostics[provider] = current
         } catch ProviderError.unauthorized {
-            snapshots[provider] = .authRequired(provider: provider, fetchedAt: checkedAt)
+            snapshots[provider] = .init(
+                provider: provider,
+                status: .authRequired,
+                remainingValue: nil,
+                remainingUnit: nil,
+                usedValue: nil,
+                resetAt: nil,
+                fetchedAt: checkedAt,
+                summaryText: "Authentication failed",
+                detailText: "Your session may have expired. Please reconnect to refresh usage data.",
+                providerMetadata: nil
+            )
             var current = diagnostics(for: provider)
             current.lastCheckedAt = checkedAt
             current.lastErrorMessage = ProviderError.unauthorized.localizedDescription

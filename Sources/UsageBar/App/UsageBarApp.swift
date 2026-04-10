@@ -35,13 +35,6 @@ struct UsageBarApp: App {
             }
         }
         .menuBarExtraStyle(.window)
-
-        Settings {
-            SettingsView()
-                .environmentObject(providerStore)
-                .environmentObject(settingsStore)
-                .frame(width: 560, height: 680)
-        }
     }
 }
 

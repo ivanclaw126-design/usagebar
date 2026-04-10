@@ -98,6 +98,8 @@ struct BailianProvider: ProviderAdapter {
 
         let liveResult = await fetchCodingPlanUsageResultWithSession(cookie: state.cookies)
         diagnostics.append(contentsOf: liveResult.diagnostics)
+
+        // If live fetch succeeded, return it
         if let payload = liveResult.value {
             return Self.makeSessionSnapshot(
                 from: payload,
@@ -107,18 +109,22 @@ struct BailianProvider: ProviderAdapter {
         }
 
         if let payload = try? Self.parseUsageResponse(fromRenderedText: state.renderedText) {
-            return Self.makeSessionSnapshot(
+            return Self.makeSavedSessionSnapshot(
                 from: payload,
                 diagnostics: diagnostics,
-                host: consoleHost
+                host: consoleHost,
+                capturedAt: state.capturedAt,
+                liveAuthorizationFailed: liveResult.failure?.isAuthorizationFailure == true
             )
         }
 
         if let payload = try? Self.parseUsageResponse(fromHTML: state.html) {
-            return Self.makeSessionSnapshot(
+            return Self.makeSavedSessionSnapshot(
                 from: payload,
                 diagnostics: diagnostics,
-                host: consoleHost
+                host: consoleHost,
+                capturedAt: state.capturedAt,
+                liveAuthorizationFailed: liveResult.failure?.isAuthorizationFailure == true
             )
         }
 
@@ -947,6 +953,32 @@ struct BailianProvider: ProviderAdapter {
         )
     }
 
+    static func makeSavedSessionSnapshot(
+        from payload: BailianUsageResponse,
+        diagnostics: [ProviderEndpointDiagnostic],
+        host: String,
+        capturedAt: Date,
+        liveAuthorizationFailed: Bool
+    ) -> ProviderBalanceSnapshot {
+        var snapshot = makeSessionSnapshot(from: payload, diagnostics: diagnostics, host: host)
+        snapshot.status = liveAuthorizationFailed ? .degraded : snapshot.status
+        snapshot.fetchedAt = capturedAt
+        snapshot.summaryText = payload.windows.isEmpty
+            ? "Saved Coding Plan snapshot"
+            : "Saved 5-hour, weekly, and monthly usage snapshot"
+        snapshot.detailText = liveAuthorizationFailed
+            ? "Loaded from the last saved Bailian page snapshot. Live session authorization needs to be refreshed."
+            : "Loaded from the last saved Bailian page snapshot."
+
+        if var metadata = snapshot.providerMetadata?.bailian {
+            metadata.statusText = liveAuthorizationFailed ? "Saved Session" : (metadata.statusText ?? "Saved Session")
+            metadata.diagnosticReport = makeDiagnosticReport(host: host, diagnostics: diagnostics, windows: payload.windows)
+            snapshot.providerMetadata = ProviderSnapshotMetadata(bailian: metadata, zai: nil)
+        }
+
+        return snapshot
+    }
+
     private static func makeSnapshot(
         from payload: BailianUsageResponse,
         status: ProviderStatus,
@@ -1246,14 +1278,26 @@ private final class BailianRenderedPageLoader: NSObject, WKNavigationDelegate {
             }
             try await Task.sleep(for: .seconds(1))
         }
-        throw ProviderError.invalidResponse
+        throw ProviderError.unauthorized
     }
 
     private func currentUsagePayload() async throws -> BailianUsageResponse? {
         let bodyText = try await evaluate(script: "document.body ? document.body.innerText : ''")
+
+        // Check for login-required state with multiple keyword patterns
         if bodyText.contains("登录") && bodyText.contains("阿里云") {
             throw ProviderError.unauthorized
         }
+        if bodyText.contains("请登录") {
+            throw ProviderError.unauthorized
+        }
+        if bodyText.contains("立即登录") {
+            throw ProviderError.unauthorized
+        }
+        if bodyText.contains("登录以使用") {
+            throw ProviderError.unauthorized
+        }
+
         if let payload = try? BailianProvider.parseUsageResponse(fromRenderedText: bodyText) {
             return payload
         }

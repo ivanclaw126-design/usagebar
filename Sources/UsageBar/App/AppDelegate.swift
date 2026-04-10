@@ -12,13 +12,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     static func bringAppToFront() {
-        let app = NSApplication.shared
-        app.activate(ignoringOtherApps: true)
-        app.windows.forEach { window in
-            window.orderFrontRegardless()
-            if window.canBecomeKey {
-                window.makeKeyAndOrderFront(nil)
-            }
-        }
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }

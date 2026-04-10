@@ -2,6 +2,60 @@ import SwiftUI
 import WebKit
 import AppKit
 
+@MainActor
+final class SettingsWindowManager: NSObject, NSWindowDelegate {
+    static let shared = SettingsWindowManager()
+
+    private weak var window: NSWindow?
+
+    func present(providerStore: ProviderStore, settingsStore: SettingsStore) {
+        if let window {
+            AppDelegate.bringAppToFront()
+            window.orderFrontRegardless()
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let rootView = SettingsView()
+            .environmentObject(providerStore)
+            .environmentObject(settingsStore)
+
+        let controller = NSHostingController(rootView: rootView)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = settingsStore.text("UsageBar Settings", "UsageBar 设置")
+        window.contentViewController = controller
+        window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.isMovableByWindowBackground = true
+        window.setFrameAutosaveName("SettingsWindow")
+        window.collectionBehavior.remove(.fullScreenAuxiliary)
+        window.minSize = NSSize(width: 480, height: 540)
+        window.maxSize = NSSize(width: 480, height: 1600)
+        window.delegate = self
+        window.center()
+
+        self.window = window
+
+        AppDelegate.bringAppToFront()
+        window.orderFrontRegardless()
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func close() {
+        window?.close()
+        window = nil
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        window = nil
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var providerStore: ProviderStore
     @EnvironmentObject private var settingsStore: SettingsStore
@@ -10,7 +64,7 @@ struct SettingsView: View {
 
     var body: some View {
         ZStack {
-            VisualEffectView(material: .hudWindow)
+            VisualEffectView(material: .popover, blendingMode: .withinWindow)
                 .ignoresSafeArea()
 
             ScrollView {
@@ -63,17 +117,22 @@ struct SettingsView: View {
                 }
                 .padding(24)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .sheet(item: Binding(
-            get: { providerStore.activeSessionProvider },
-            set: { _ in providerStore.endSessionCapture() }
-        )) { provider in
-            SessionCaptureContainer(provider: provider)
-                .environmentObject(providerStore)
-                .environmentObject(settingsStore)
-        }
+        .frame(minWidth: 480, idealWidth: 480, maxWidth: 480, minHeight: 600, idealHeight: 600, maxHeight: .infinity)
         .onAppear {
             AppDelegate.bringAppToFront()
+        }
+        .onChange(of: providerStore.activeSessionProvider) { _, provider in
+            if let provider {
+                SessionCaptureWindowManager.shared.present(
+                    provider: provider,
+                    providerStore: providerStore,
+                    settingsStore: settingsStore
+                )
+            } else {
+                SessionCaptureWindowManager.shared.close()
+            }
         }
     }
 

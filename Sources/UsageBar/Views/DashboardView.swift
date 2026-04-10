@@ -3,33 +3,14 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var providerStore: ProviderStore
     @EnvironmentObject private var settingsStore: SettingsStore
-    @Environment(\.openSettings) private var openSettings
     @State private var currentTime = Date()
     private let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.97, green: 0.97, blue: 0.98),
-                    Color(red: 0.92, green: 0.94, blue: 0.97),
-                    Color(red: 0.98, green: 0.95, blue: 0.92)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .overlay(alignment: .topLeading) {
-                Circle()
-                    .fill(Color.white.opacity(0.55))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 40)
-                    .offset(x: -60, y: -90)
-            }
-            .overlay {
-                VisualEffectView(material: .popover, blendingMode: .withinWindow)
-                    .opacity(0.94)
-            }
-            .ignoresSafeArea()
+            VisualEffectView(material: .popover, blendingMode: .withinWindow)
+                .opacity(0.94)
+                .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 18) {
                 header
@@ -41,8 +22,7 @@ struct DashboardView: View {
                         snapshot: snapshot,
                         hasCredential: providerStore.hasCredential(for: snapshot.provider),
                         reconnectAction: {
-                            AppDelegate.bringAppToFront()
-                            openSettings()
+                            openSettingsWindow()
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 providerStore.beginSessionCapture(for: snapshot.provider)
                             }
@@ -86,11 +66,7 @@ struct DashboardView: View {
 
             HStack {
                 Button(text("Open Settings", "打开设置")) {
-                    AppDelegate.bringAppToFront()
-                    openSettings()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        AppDelegate.bringAppToFront()
-                    }
+                    openSettingsWindow()
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -155,11 +131,7 @@ struct DashboardView: View {
                 .buttonStyle(.borderedProminent)
 
                 Button(text("Open Settings", "打开设置")) {
-                    AppDelegate.bringAppToFront()
-                    openSettings()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        AppDelegate.bringAppToFront()
-                    }
+                    openSettingsWindow()
                 }
                 .buttonStyle(.bordered)
 
@@ -208,5 +180,12 @@ struct DashboardView: View {
 
     private func text(_ english: String, _ chinese: String) -> String {
         settingsStore.text(english, chinese)
+    }
+
+    private func openSettingsWindow() {
+        SettingsWindowManager.shared.present(
+            providerStore: providerStore,
+            settingsStore: settingsStore
+        )
     }
 }

@@ -289,7 +289,7 @@ enum ZAIQuotaBucket: String, Equatable, Codable {
         switch self {
         case .fiveHour: "5 Hours"
         case .weekly: "Weekly"
-        case .mcpMonthly: "Monthly"
+        case .mcpMonthly: "MCP tokens"
         case .unmatched: "Other Limits"
         }
     }

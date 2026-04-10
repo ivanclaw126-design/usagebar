@@ -75,3 +75,15 @@ enum DataAgeTint: Equatable {
     case aging
     case stale
 }
+
+enum BailianSnapshotFreshness: Equatable {
+    case valid
+    case expired
+}
+
+extension Date {
+    var bailianSnapshotFreshness: BailianSnapshotFreshness {
+        let age = Date().timeIntervalSince(self)
+        return age > (5 * 60 * 60) ? .expired : .valid
+    }
+}
