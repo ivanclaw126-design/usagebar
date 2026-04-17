@@ -355,25 +355,36 @@ struct ProviderConfiguration: Codable, Equatable {
     }
 }
 
+enum DashboardHeightMode: String, Codable, CaseIterable, Identifiable {
+    case max
+    case medium
+    case low
+
+    var id: String { rawValue }
+}
+
 struct SettingsSnapshot: Codable, Equatable {
     var compactMenuBar: Bool
     var launchAtLogin: Bool
     var providerConfigurations: [ProviderKind: ProviderConfiguration]
     var didDismissOnboarding: Bool
     var language: AppLanguage
+    var dashboardHeightMode: DashboardHeightMode
 
     init(
         compactMenuBar: Bool,
         launchAtLogin: Bool,
         providerConfigurations: [ProviderKind: ProviderConfiguration],
         didDismissOnboarding: Bool,
-        language: AppLanguage
+        language: AppLanguage,
+        dashboardHeightMode: DashboardHeightMode
     ) {
         self.compactMenuBar = compactMenuBar
         self.launchAtLogin = launchAtLogin
         self.providerConfigurations = providerConfigurations
         self.didDismissOnboarding = didDismissOnboarding
         self.language = language
+        self.dashboardHeightMode = dashboardHeightMode
     }
 
     enum CodingKeys: String, CodingKey {
@@ -382,6 +393,7 @@ struct SettingsSnapshot: Codable, Equatable {
         case providerConfigurations
         case didDismissOnboarding
         case language
+        case dashboardHeightMode
     }
 
     init(from decoder: Decoder) throws {
@@ -392,6 +404,7 @@ struct SettingsSnapshot: Codable, Equatable {
             ?? Dictionary(uniqueKeysWithValues: ProviderKind.allCases.map { ($0, .default(for: $0)) })
         didDismissOnboarding = try container.decodeIfPresent(Bool.self, forKey: .didDismissOnboarding) ?? false
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .english
+        dashboardHeightMode = try container.decodeIfPresent(DashboardHeightMode.self, forKey: .dashboardHeightMode) ?? .max
     }
 
     static let `default` = SettingsSnapshot(
@@ -401,7 +414,8 @@ struct SettingsSnapshot: Codable, Equatable {
             uniqueKeysWithValues: ProviderKind.allCases.map { ($0, .default(for: $0)) }
         ),
         didDismissOnboarding: false,
-        language: .english
+        language: .english,
+        dashboardHeightMode: .max
     )
 }
 

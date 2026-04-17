@@ -15,7 +15,7 @@ final class ProviderStore: ObservableObject {
     private let settingsStore: SettingsStore
     private let credentialStore: CredentialStoreType
     private let cacheStore: SnapshotCacheStore
-    private let sessionCapture: SessionCapture
+    private let sessionCapture: SessionCaptureType
     private let adapters: [ProviderKind: ProviderAdapter]
     private var refreshTask: Task<Void, Never>?
 
@@ -23,7 +23,7 @@ final class ProviderStore: ObservableObject {
         settingsStore: SettingsStore,
         credentialStore: CredentialStoreType,
         cacheStore: SnapshotCacheStore = SnapshotCacheStore(),
-        sessionCapture: SessionCapture,
+        sessionCapture: SessionCaptureType,
         adapters: [ProviderAdapter] = [BailianProvider(), ZAIProvider(), OpenAIPlusProvider()],
         autoRefreshEnabled: Bool = true
     ) {
@@ -230,10 +230,7 @@ final class ProviderStore: ObservableObject {
             diagnostics[provider] = current
             snapshots[provider] = .authRequired(provider: provider)
             persistCache()
-            toastMessage = settingsStore.text(
-                "\(provider.displayName) credential saved to Keychain. Press Test Connection to verify it.",
-                "\(provider.displayName) 凭据已保存到 Keychain。请点击测试连接进行验证。"
-            )
+            toastMessage = nil
         } catch {
             toastMessage = error.localizedDescription
         }
@@ -244,10 +241,7 @@ final class ProviderStore: ObservableObject {
         snapshots[provider] = .authRequired(provider: provider)
         diagnostics[provider] = .empty
         persistCache()
-        toastMessage = settingsStore.text(
-            "\(provider.displayName) credential removed.",
-            "\(provider.displayName) 凭据已移除。"
-        )
+        toastMessage = nil
     }
 
     func hasCredential(for provider: ProviderKind) -> Bool {
@@ -278,6 +272,7 @@ final class ProviderStore: ObservableObject {
                 saveCredential(kind: .cookieJar, value: cookieJar, for: provider)
             }
             activeSessionProvider = nil
+            await testConnection(for: provider)
         } catch {
             sessionCaptureErrorMessage = provider == .bailian
                 ? "Could not capture the current Bailian session state from the web page."
@@ -287,7 +282,7 @@ final class ProviderStore: ObservableObject {
 
     private func refreshProvider(_ provider: ProviderKind) async {
         let checkedAt = Date()
-        let credential = credentialStore.load(for: provider)
+        let credential = await refreshedCredential(for: provider, stored: credentialStore.load(for: provider))
 
         do {
             guard let adapter = adapters[provider] else { return }
@@ -401,6 +396,64 @@ final class ProviderStore: ObservableObject {
             current.lastDiagnosticReport = fallback?.providerMetadata?.diagnosticReport
             diagnostics[provider] = current
         }
+    }
+
+    private func refreshedCredential(
+        for provider: ProviderKind,
+        stored: StoredCredential?
+    ) async -> StoredCredential? {
+        guard let stored else { return nil }
+
+        switch stored.kind {
+        case .apiKey:
+            return stored
+        case .cookieJar:
+            guard let liveCookieJar = await sessionCapture.currentCookieJar(for: provider),
+                  liveCookieJar.isEmpty == false,
+                  liveCookieJar != stored.value else {
+                return stored
+            }
+
+            let refreshed = StoredCredential(kind: .cookieJar, value: liveCookieJar)
+            try? credentialStore.save(refreshed, for: provider)
+            return refreshed
+        case .sessionToken:
+            if provider == .bailian,
+               let refreshedState = await sessionCapture.refreshBailianSessionState() {
+                let refreshed = StoredCredential(kind: .sessionToken, value: refreshedState)
+                try? credentialStore.save(refreshed, for: provider)
+                return refreshed
+            }
+
+            guard provider == .bailian,
+                  let liveCookieJar = await sessionCapture.currentCookieJar(for: provider),
+                  liveCookieJar.isEmpty == false,
+                  var sessionState = try? decodedBailianSessionState(from: stored.value),
+                  sessionState.cookies != liveCookieJar else {
+                return stored
+            }
+
+            sessionState.cookies = liveCookieJar
+            guard let encodedState = encodedBailianSessionState(sessionState) else {
+                return stored
+            }
+
+            let refreshed = StoredCredential(kind: .sessionToken, value: encodedState)
+            try? credentialStore.save(refreshed, for: provider)
+            return refreshed
+        }
+    }
+
+    private func decodedBailianSessionState(from value: String) throws -> BailianSessionState {
+        let data = Data(value.utf8)
+        return try JSONDecoder().decode(BailianSessionState.self, from: data)
+    }
+
+    private func encodedBailianSessionState(_ state: BailianSessionState) -> String? {
+        guard let data = try? JSONEncoder().encode(state) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
     }
 
     private func compactLabel(for snapshot: ProviderBalanceSnapshot) -> String {
