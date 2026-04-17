@@ -1,9 +1,110 @@
 import Foundation
 import XCTest
+import WebKit
 @testable import UsageBar
 
 @MainActor
 final class ProviderStoreTests: XCTestCase {
+    func testRefreshProviderPrefersLatestBailianCookiesFromWebKitStore() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let staleState = BailianSessionState(
+            cookies: "old-cookie=1",
+            renderedText: "",
+            html: "",
+            capturedAt: Date(timeIntervalSince1970: 1)
+        )
+        let credentialStore = InMemoryCredentialStore(
+            values: [.bailian: StoredCredential(kind: .sessionToken, value: try XCTUnwrap(Self.encode(staleState)))]
+        )
+        let sessionCapture = MockSessionCapture(currentCookies: [.bailian: "new-cookie=2"])
+        let adapter = RecordingProviderAdapter(provider: .bailian, snapshot: Self.okSnapshot(for: .bailian))
+        let store = ProviderStore(
+            settingsStore: settingsStore,
+            credentialStore: credentialStore,
+            sessionCapture: sessionCapture,
+            adapters: [adapter],
+            autoRefreshEnabled: false
+        )
+
+        await store.testConnection(for: .bailian)
+
+        let usedCredential = await adapter.lastCredential
+        let usedState = try XCTUnwrap(Self.decode(try XCTUnwrap(usedCredential?.value)))
+        XCTAssertEqual(usedState.cookies, "new-cookie=2")
+
+        let savedState = try XCTUnwrap(Self.decode(try XCTUnwrap(credentialStore.load(for: .bailian)?.value)))
+        XCTAssertEqual(savedState.cookies, "new-cookie=2")
+    }
+
+    func testRefreshProviderPrefersFreshBailianSessionStateWhenAvailable() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let staleState = BailianSessionState(
+            cookies: "old-cookie=1",
+            renderedText: "old",
+            html: "old",
+            capturedAt: Date(timeIntervalSince1970: 1)
+        )
+        let freshState = BailianSessionState(
+            cookies: "new-cookie=2",
+            renderedText: "fresh",
+            html: "fresh",
+            capturedAt: Date(timeIntervalSince1970: 2)
+        )
+        let credentialStore = InMemoryCredentialStore(
+            values: [.bailian: StoredCredential(kind: .sessionToken, value: try XCTUnwrap(Self.encode(staleState)))]
+        )
+        let sessionCapture = MockSessionCapture(refreshedBailianState: try XCTUnwrap(Self.encode(freshState)))
+        let adapter = RecordingProviderAdapter(provider: .bailian, snapshot: Self.okSnapshot(for: .bailian))
+        let store = ProviderStore(
+            settingsStore: settingsStore,
+            credentialStore: credentialStore,
+            sessionCapture: sessionCapture,
+            adapters: [adapter],
+            autoRefreshEnabled: false
+        )
+
+        await store.testConnection(for: .bailian)
+
+        let usedCredential = await adapter.lastCredential
+        let usedState = try XCTUnwrap(Self.decode(try XCTUnwrap(usedCredential?.value)))
+        XCTAssertEqual(usedState.cookies, freshState.cookies)
+        XCTAssertEqual(usedState.renderedText, freshState.renderedText)
+        XCTAssertEqual(usedState.html, freshState.html)
+
+        let savedState = try XCTUnwrap(Self.decode(try XCTUnwrap(credentialStore.load(for: .bailian)?.value)))
+        XCTAssertEqual(savedState.cookies, freshState.cookies)
+        XCTAssertEqual(savedState.renderedText, freshState.renderedText)
+        XCTAssertEqual(savedState.html, freshState.html)
+    }
+
+    func testSaveSessionTriggersImmediateConnectionTest() async {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let credentialStore = InMemoryCredentialStore()
+        let sessionCapture = MockSessionCapture(exportedCookies: "cookie=value")
+        let adapter = CountingProviderAdapter(provider: .zaiGlobal, snapshot: Self.okSnapshot(for: .zaiGlobal))
+        let store = ProviderStore(
+            settingsStore: settingsStore,
+            credentialStore: credentialStore,
+            sessionCapture: sessionCapture,
+            adapters: [adapter],
+            autoRefreshEnabled: false
+        )
+
+        let webView = WKWebView(frame: .zero)
+        await store.saveSession(from: webView, for: .zaiGlobal)
+
+        let count = await adapter.callCount
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(credentialStore.load(for: .zaiGlobal)?.value, "cookie=value")
+        XCTAssertNil(store.activeSessionProvider)
+    }
+
     func testTestConnectionStoresLastSuccessForSuccessfulProvider() async {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
@@ -137,6 +238,15 @@ final class ProviderStoreTests: XCTestCase {
             providerMetadata: nil
         )
     }
+
+    private static func encode(_ state: BailianSessionState) -> String? {
+        guard let data = try? JSONEncoder().encode(state) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func decode(_ value: String) -> BailianSessionState? {
+        try? JSONDecoder().decode(BailianSessionState.self, from: Data(value.utf8))
+    }
 }
 
 private final class InMemoryCredentialStore: CredentialStoreType {
@@ -156,6 +266,46 @@ private final class InMemoryCredentialStore: CredentialStoreType {
 
     func delete(for provider: ProviderKind) {
         values[provider] = nil
+    }
+}
+
+@MainActor
+private final class MockSessionCapture: SessionCaptureType {
+    var currentCookies: [ProviderKind: String]
+    var exportedCookies: String
+    var exportedBailianState: String?
+    var refreshedBailianState: String?
+
+    init(
+        currentCookies: [ProviderKind: String] = [:],
+        exportedCookies: String = "",
+        exportedBailianState: String? = nil,
+        refreshedBailianState: String? = nil
+    ) {
+        self.currentCookies = currentCookies
+        self.exportedCookies = exportedCookies
+        self.exportedBailianState = exportedBailianState
+        self.refreshedBailianState = refreshedBailianState
+    }
+
+    func makeWebView(for provider: ProviderKind) -> WKWebView {
+        WKWebView(frame: .zero)
+    }
+
+    func exportCookies(from webView: WKWebView) async throws -> String {
+        exportedCookies
+    }
+
+    func exportBailianSessionState(from webView: WKWebView) async throws -> String {
+        exportedBailianState ?? ""
+    }
+
+    func currentCookieJar(for provider: ProviderKind) async -> String? {
+        currentCookies[provider]
+    }
+
+    func refreshBailianSessionState() async -> String? {
+        refreshedBailianState
     }
 }
 
@@ -185,6 +335,22 @@ private actor CountingProviderAdapter: ProviderAdapter {
 
     func fetchBalance(using credential: StoredCredential?) async throws -> ProviderBalanceSnapshot {
         callCount += 1
+        return snapshot
+    }
+}
+
+private actor RecordingProviderAdapter: ProviderAdapter {
+    let provider: ProviderKind
+    let snapshot: ProviderBalanceSnapshot
+    private(set) var lastCredential: StoredCredential?
+
+    init(provider: ProviderKind, snapshot: ProviderBalanceSnapshot) {
+        self.provider = provider
+        self.snapshot = snapshot
+    }
+
+    func fetchBalance(using credential: StoredCredential?) async throws -> ProviderBalanceSnapshot {
+        lastCredential = credential
         return snapshot
     }
 }

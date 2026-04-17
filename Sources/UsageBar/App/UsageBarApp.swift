@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct UsageBarApp: App {
@@ -21,13 +22,7 @@ struct UsageBarApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            DashboardView()
-                .environmentObject(providerStore)
-                .environmentObject(settingsStore)
-                .frame(width: 420)
-                .task {
-                    await providerStore.refreshIfNeeded(force: false)
-                }
+            dashboardContent
         } label: {
             HStack(spacing: 6) {
                 MenuBarUsageGlyph(snapshot: providerStore.menuBarGlyphSnapshot)
@@ -35,6 +30,75 @@ struct UsageBarApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+    }
+
+    @ViewBuilder
+    private var dashboardContent: some View {
+        let content = DashboardView()
+            .environmentObject(providerStore)
+            .environmentObject(settingsStore)
+            .frame(width: 420)
+            .task {
+                await providerStore.refreshIfNeeded(force: false)
+            }
+
+        if settingsStore.snapshot.dashboardHeightMode == .max {
+            content
+        } else {
+            content.frame(
+                minHeight: DashboardWindowSizing.minimumHeight(for: settingsStore.snapshot.dashboardHeightMode),
+                idealHeight: DashboardWindowSizing.idealHeight(for: settingsStore.snapshot.dashboardHeightMode),
+                maxHeight: DashboardWindowSizing.maximumHeight(for: settingsStore.snapshot.dashboardHeightMode)
+            )
+        }
+    }
+}
+
+private enum DashboardWindowSizing {
+    static func minimumHeight(for mode: DashboardHeightMode) -> CGFloat {
+        switch mode {
+        case .max:
+            return min(620, availableMaximumHeight)
+        case .medium:
+            return min(620, maximumHeight(for: mode))
+        case .low:
+            return min(520, maximumHeight(for: mode))
+        }
+    }
+
+    static func idealHeight(for mode: DashboardHeightMode) -> CGFloat {
+        switch mode {
+        case .max:
+            return min(760, availableMaximumHeight)
+        case .medium:
+            return min(620, maximumHeight(for: mode))
+        case .low:
+            return min(520, maximumHeight(for: mode))
+        }
+    }
+
+    static func maximumHeight(for mode: DashboardHeightMode) -> CGFloat {
+        switch mode {
+        case .max:
+            return availableMaximumHeight
+        case .medium:
+            return min(620, availableMaximumHeight)
+        case .low:
+            return min(520, availableMaximumHeight)
+        }
+    }
+
+    private static var availableMaximumHeight: CGFloat {
+        let visibleHeight = activeScreenVisibleHeight
+        return max(560, visibleHeight - 160)
+    }
+
+    private static var activeScreenVisibleHeight: CGFloat {
+        let mouseLocation = NSEvent.mouseLocation
+        if let hoveredScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) {
+            return hoveredScreen.visibleFrame.height
+        }
+        return NSScreen.main?.visibleFrame.height ?? 820
     }
 }
 

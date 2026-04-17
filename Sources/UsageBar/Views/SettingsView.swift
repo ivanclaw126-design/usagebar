@@ -95,6 +95,25 @@ struct SettingsView: View {
                         set: { settingsStore.setCompactMenuBar($0) }
                     ))
 
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(text("Dashboard Height", "主界面高度"))
+                            .font(.headline)
+                        Picker(text("Dashboard Height", "主界面高度"), selection: Binding(
+                            get: { settingsStore.snapshot.dashboardHeightMode },
+                            set: { settingsStore.setDashboardHeightMode($0) }
+                        )) {
+                            ForEach(DashboardHeightMode.allCases) { mode in
+                                Text(localizedDashboardHeightMode(mode)).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text(text("Max follows the default dashboard window height. Medium and Low keep the window smaller and enable scrolling.", "最大会沿用默认主界面窗口高度。中和低会让窗口更小，并启用滚动。"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle(text("Launch at login", "开机自动启动"), isOn: Binding(
                             get: { settingsStore.snapshot.launchAtLogin },
@@ -326,13 +345,6 @@ struct SettingsView: View {
                 }
             }
 
-            if let toast = providerStore.toastMessage {
-                Text(toast)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
             VStack(alignment: .leading, spacing: 6) {
                 let isChinese = settingsStore.snapshot.language == .chinese
                 let statusText = providerStore.connectionStateText(for: provider)
@@ -456,6 +468,17 @@ struct SettingsView: View {
             return text("API Key / Token", "API Key / 令牌")
         case .webSession:
             return text("Web Session", "网页登录")
+        }
+    }
+
+    private func localizedDashboardHeightMode(_ mode: DashboardHeightMode) -> String {
+        switch mode {
+        case .max:
+            return text("Max", "最大")
+        case .medium:
+            return text("Medium", "中")
+        case .low:
+            return text("Low", "低")
         }
     }
 }

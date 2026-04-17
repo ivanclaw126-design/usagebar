@@ -12,29 +12,91 @@ struct DashboardView: View {
                 .opacity(0.94)
                 .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                if settingsStore.shouldShowOnboarding(hasAnyCredential: providerStore.hasAnyCredentialConfigured) {
-                    onboardingCard
+            if usesScrollableLayout {
+                ScrollView(.vertical, showsIndicators: true) {
+                    content
                 }
-                ForEach(providerStore.orderedSnapshots.filter { settingsStore.configuration(for: $0.provider).isEnabled }) { snapshot in
-                    ProviderCardView(
-                        snapshot: snapshot,
-                        hasCredential: providerStore.hasCredential(for: snapshot.provider),
-                        reconnectAction: {
-                            openSettingsWindow()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                providerStore.beginSessionCapture(for: snapshot.provider)
-                            }
-                        }
-                    )
-                }
-                footer
+            } else {
+                content
             }
-            .padding(18)
         }
         .onReceive(countdownTimer) { value in
             currentTime = value
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            header
+            if settingsStore.shouldShowOnboarding(hasAnyCredential: providerStore.hasAnyCredentialConfigured) {
+                onboardingCard
+            }
+            ForEach(providerStore.orderedSnapshots.filter { settingsStore.configuration(for: $0.provider).isEnabled }) { snapshot in
+                ProviderCardView(
+                    snapshot: snapshot,
+                    hasCredential: providerStore.hasCredential(for: snapshot.provider),
+                    reconnectAction: {
+                        openSettingsWindow()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            providerStore.beginSessionCapture(for: snapshot.provider)
+                        }
+                    }
+                )
+            }
+            footer
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+    }
+
+    private var usesScrollableLayout: Bool {
+        settingsStore.snapshot.dashboardHeightMode != .max
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("UsageBar")
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text(text("Coding plan balances across your active subscriptions.", "聚合展示你当前订阅的 coding plan 余额。"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    Button(text("Refresh", "刷新")) {
+                        Task {
+                            await providerStore.refresh(force: true)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button(text("Settings", "设置")) {
+                        openSettingsWindow()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            HStack {
+                Label(
+                    providerStore.lastRefreshAt?.dashboardLabel(isChinese: settingsStore.snapshot.language == .chinese)
+                        ?? text("Not refreshed yet", "尚未刷新"),
+                    systemImage: "clock"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if providerStore.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
         }
     }
 
@@ -87,54 +149,9 @@ struct DashboardView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("UsageBar")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-
-            Text(text("Coding plan balances across your active subscriptions.", "聚合展示你当前订阅的 coding plan 余额。"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            HStack {
-                Label(
-                    providerStore.lastRefreshAt?.dashboardLabel(isChinese: settingsStore.snapshot.language == .chinese)
-                        ?? text("Not refreshed yet", "尚未刷新"),
-                    systemImage: "clock"
-                )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if providerStore.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-            }
-        }
-    }
-
     private var footer: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let message = providerStore.toastMessage {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             HStack {
-                Button(text("Refresh Now", "立即刷新")) {
-                    Task {
-                        await providerStore.refresh(force: true)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button(text("Open Settings", "打开设置")) {
-                    openSettingsWindow()
-                }
-                .buttonStyle(.bordered)
-
                 Button(text("Quit", "退出")) {
                     AppDelegate.terminateApp()
                 }

@@ -37,12 +37,14 @@ final class UsageBarTests: XCTestCase {
         let encoded = try JSONEncoder().encode(current)
         var legacyObject = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         legacyObject.removeValue(forKey: "didDismissOnboarding")
+        legacyObject.removeValue(forKey: "dashboardHeightMode")
         let legacyJSON = try JSONSerialization.data(withJSONObject: legacyObject)
 
         let snapshot = try JSONDecoder().decode(SettingsSnapshot.self, from: legacyJSON)
 
         XCTAssertFalse(snapshot.didDismissOnboarding)
         XCTAssertEqual(snapshot.language, .english)
+        XCTAssertEqual(snapshot.dashboardHeightMode, .max)
         XCTAssertEqual(snapshot.providerConfigurations[.openAIPlus]?.authMode, .webSession)
     }
 
@@ -58,5 +60,19 @@ final class UsageBarTests: XCTestCase {
         store.dismissOnboarding()
 
         XCTAssertFalse(store.shouldShowOnboarding(hasAnyCredential: false))
+    }
+
+    @MainActor
+    func testSettingsStorePersistsDashboardHeightMode() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let store = SettingsStore(defaults: defaults)
+
+        store.setDashboardHeightMode(.low)
+
+        XCTAssertEqual(store.snapshot.dashboardHeightMode, .low)
+
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertEqual(reloaded.snapshot.dashboardHeightMode, .low)
     }
 }

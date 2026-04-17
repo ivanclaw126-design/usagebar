@@ -54,6 +54,11 @@ final class SettingsStore: ObservableObject {
         persist()
     }
 
+    func setDashboardHeightMode(_ mode: DashboardHeightMode) {
+        snapshot.dashboardHeightMode = mode
+        persist()
+    }
+
     func dismissOnboarding() {
         snapshot.didDismissOnboarding = true
         persist()
