@@ -15,9 +15,7 @@ final class SnapshotCacheStore {
     }
 
     func load() -> ProviderCacheSnapshot? {
-        guard let data = defaults.data(forKey: key) else {
-            return nil
-        }
+        guard let data = defaults.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(ProviderCacheSnapshot.self, from: data)
     }
 

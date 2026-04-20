@@ -16,6 +16,10 @@ struct ProviderPayloadReader {
         return nil
     }
 
+    func strings(forKeyPaths keyPaths: [[String]]) -> [String] {
+        keyPaths.compactMap { normalizedString(value(at: $0)) }
+    }
+
     func number(forKeyPaths keyPaths: [[String]]) -> Double? {
         for keyPath in keyPaths {
             if let number = normalizedNumber(value(at: keyPath)) {

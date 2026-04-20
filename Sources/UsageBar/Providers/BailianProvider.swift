@@ -96,7 +96,10 @@ struct BailianProvider: ProviderAdapter {
             )
         ]
 
-        let liveResult = await fetchCodingPlanUsageResultWithSession(cookie: state.cookies)
+        let liveResult = await fetchCodingPlanUsageResultWithSession(
+            cookie: state.cookies,
+            cookieRecords: state.cookieRecords
+        )
         diagnostics.append(contentsOf: liveResult.diagnostics)
 
         // If live fetch succeeded, return it
@@ -167,10 +170,13 @@ struct BailianProvider: ProviderAdapter {
         )
     }
 
-    private func fetchCodingPlanUsageResultWithSession(cookie: String) async -> BailianUsageLookupResult {
+    private func fetchCodingPlanUsageResultWithSession(
+        cookie: String,
+        cookieRecords: [BailianSessionCookie]? = nil
+    ) async -> BailianUsageLookupResult {
         var diagnostics: [ProviderEndpointDiagnostic] = []
 
-        let jsonResult = await fetchConsoleJSON(cookie: cookie)
+        let jsonResult = await fetchConsoleJSON(cookie: cookie, cookieRecords: cookieRecords)
         diagnostics.append(contentsOf: jsonResult.diagnostics)
         if let payload = jsonResult.value {
             return BailianUsageLookupResult(value: payload, diagnostics: diagnostics, failure: nil)
@@ -183,7 +189,7 @@ struct BailianProvider: ProviderAdapter {
             )
         }
 
-        let pageResult = await fetchConsolePage(cookie: cookie)
+        let pageResult = await fetchConsolePage(cookie: cookie, cookieRecords: cookieRecords)
         diagnostics.append(contentsOf: pageResult.diagnostics)
         if let payload = pageResult.value {
             return BailianUsageLookupResult(value: payload, diagnostics: diagnostics, failure: nil)
@@ -192,7 +198,7 @@ struct BailianProvider: ProviderAdapter {
             return BailianUsageLookupResult(value: nil, diagnostics: diagnostics, failure: pageResult.failure)
         }
 
-        let renderedPageResult = await fetchRenderedUsagePage(cookie: cookie)
+        let renderedPageResult = await fetchRenderedUsagePage(cookie: cookie, cookieRecords: cookieRecords)
         diagnostics.append(contentsOf: renderedPageResult.diagnostics)
         if let payload = renderedPageResult.value {
             return BailianUsageLookupResult(value: payload, diagnostics: diagnostics, failure: nil)
@@ -205,14 +211,20 @@ struct BailianProvider: ProviderAdapter {
         )
     }
 
-    private func fetchRenderedUsagePage(cookie: String) async -> BailianPageFetchResult {
+    private func fetchRenderedUsagePage(
+        cookie: String,
+        cookieRecords: [BailianSessionCookie]? = nil
+    ) async -> BailianPageFetchResult {
         let loader = await MainActor.run {
             BailianRenderedPageLoader(url: renderedPageURL)
         }
-        return await loader.load(cookie: cookie)
+        return await loader.load(cookie: cookie, cookieRecords: cookieRecords)
     }
 
-    private func fetchConsoleJSON(cookie: String) async -> BailianJSONFetchResult {
+    private func fetchConsoleJSON(
+        cookie: String,
+        cookieRecords: [BailianSessionCookie]? = nil
+    ) async -> BailianJSONFetchResult {
         var diagnostics: [ProviderEndpointDiagnostic] = []
         var failures: [BailianFetchFailure] = []
 
@@ -222,7 +234,7 @@ struct BailianProvider: ProviderAdapter {
                 let (data, _) = try await client.dataRequest(
                     url: url,
                     headers: [
-                        "Cookie": cookie,
+                        "Cookie": Self.cookieHeader(fallback: cookie, records: cookieRecords, for: url),
                         "Accept": "application/json, text/plain, */*"
                     ]
                 )
@@ -317,7 +329,10 @@ struct BailianProvider: ProviderAdapter {
         return BailianJSONFetchResult(value: nil, diagnostics: diagnostics, failures: failures)
     }
 
-    private func fetchConsolePage(cookie: String) async -> BailianPageFetchResult {
+    private func fetchConsolePage(
+        cookie: String,
+        cookieRecords: [BailianSessionCookie]? = nil
+    ) async -> BailianPageFetchResult {
         var diagnostics: [ProviderEndpointDiagnostic] = []
         var lastFailure: BailianFetchFailure?
 
@@ -327,7 +342,7 @@ struct BailianProvider: ProviderAdapter {
                 let html = try await client.textRequest(
                     url: url,
                     headers: [
-                        "Cookie": cookie,
+                        "Cookie": Self.cookieHeader(fallback: cookie, records: cookieRecords, for: url),
                         "Accept": "text/html,application/xhtml+xml,application/json"
                     ]
                 )
@@ -380,6 +395,16 @@ struct BailianProvider: ProviderAdapter {
         }
 
         return BailianPageFetchResult(value: nil, diagnostics: diagnostics, failure: lastFailure)
+    }
+
+    private static func cookieHeader(
+        fallback: String,
+        records: [BailianSessionCookie]?,
+        for url: URL
+    ) -> String {
+        guard let records, records.isEmpty == false else { return fallback }
+        let header = BailianSessionCookieCodec.serializedCookieJar(from: records, for: url)
+        return header.isEmpty ? fallback : header
     }
 
     static func makeSnapshot(from json: Any, sourceHint: String) throws -> ProviderBalanceSnapshot {
@@ -1164,20 +1189,23 @@ struct BailianProviderError: LocalizedError {
 private final class BailianRenderedPageLoader: NSObject, WKNavigationDelegate {
     private let url: URL
     private let webView: WKWebView
+    private let windowHost: BackgroundWebViewWindowHost
     private var continuation: CheckedContinuation<Void, Error>?
+    private let maxRenderWaitSeconds = 30
 
     init(url: URL) {
         self.url = url
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         self.webView = WKWebView(frame: .zero, configuration: configuration)
+        self.windowHost = BackgroundWebViewWindowHost(webView: webView)
         super.init()
         webView.navigationDelegate = self
     }
 
-    func load(cookie: String) async -> BailianPageFetchResult {
+    func load(cookie: String, cookieRecords: [BailianSessionCookie]? = nil) async -> BailianPageFetchResult {
         do {
-            try await installCookies(cookie)
+            try await installCookies(cookie, cookieRecords: cookieRecords)
             try await navigate()
             let payload = try await waitForUsagePayload()
             return BailianPageFetchResult(
@@ -1223,22 +1251,26 @@ private final class BailianRenderedPageLoader: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func installCookies(_ cookieString: String) async throws {
+    private let fallbackCookieDomains = [
+        "bailian.console.aliyun.com",
+        ".bailian.console.aliyun.com",
+        "aliyun.com",
+        ".aliyun.com",
+        "aliyuncs.com",
+        ".aliyuncs.com"
+    ]
+
+    private func installCookies(
+        _ cookieString: String,
+        cookieRecords: [BailianSessionCookie]? = nil
+    ) async throws {
         let store = webView.configuration.websiteDataStore.httpCookieStore
-        let cookies = cookieString
-            .split(separator: ";")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .compactMap { part -> HTTPCookie? in
-                let pieces = part.split(separator: "=", maxSplits: 1).map(String.init)
-                guard pieces.count == 2 else { return nil }
-                return HTTPCookie(properties: [
-                    .domain: "bailian.console.aliyun.com",
-                    .path: "/",
-                    .name: pieces[0],
-                    .value: pieces[1],
-                    .secure: true
-                ])
-            }
+        let cookies: [HTTPCookie]
+        if let cookieRecords, cookieRecords.isEmpty == false {
+            cookies = cookieRecords.compactMap { $0.makeHTTPCookie() }
+        } else {
+            cookies = fallbackCookies(from: cookieString)
+        }
 
         for cookie in cookies {
             await withCheckedContinuation { continuation in
@@ -1249,9 +1281,33 @@ private final class BailianRenderedPageLoader: NSObject, WKNavigationDelegate {
         }
     }
 
+    private func fallbackCookies(from cookieString: String) -> [HTTPCookie] {
+        let pairs = cookieString
+            .split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .compactMap { part -> (String, String)? in
+                let pieces = part.split(separator: "=", maxSplits: 1).map(String.init)
+                guard pieces.count == 2 else { return nil }
+                return (pieces[0], pieces[1])
+            }
+
+        return pairs.flatMap { name, value in
+            fallbackCookieDomains.compactMap { domain in
+                HTTPCookie(properties: [
+                    .domain: domain,
+                    .path: "/",
+                    .name: name,
+                    .value: value,
+                    .secure: true
+                ])
+            }
+        }
+    }
+
     private func navigate() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             self.continuation = continuation
+            windowHost.show()
             webView.load(URLRequest(url: url))
         }
     }
@@ -1272,32 +1328,18 @@ private final class BailianRenderedPageLoader: NSObject, WKNavigationDelegate {
     }
 
     private func waitForUsagePayload() async throws -> BailianUsageResponse {
-        for _ in 0..<8 {
+        for _ in 0..<maxRenderWaitSeconds {
             if let payload = try await currentUsagePayload() {
                 return payload
             }
             try await Task.sleep(for: .seconds(1))
         }
-        throw ProviderError.unauthorized
+        throw ProviderError.invalidResponse
     }
 
     private func currentUsagePayload() async throws -> BailianUsageResponse? {
+        let readyState = try await evaluate(script: "document.readyState")
         let bodyText = try await evaluate(script: "document.body ? document.body.innerText : ''")
-
-        // Check for login-required state with multiple keyword patterns
-        if bodyText.contains("登录") && bodyText.contains("阿里云") {
-            throw ProviderError.unauthorized
-        }
-        if bodyText.contains("请登录") {
-            throw ProviderError.unauthorized
-        }
-        if bodyText.contains("立即登录") {
-            throw ProviderError.unauthorized
-        }
-        if bodyText.contains("登录以使用") {
-            throw ProviderError.unauthorized
-        }
-
         if let payload = try? BailianProvider.parseUsageResponse(fromRenderedText: bodyText) {
             return payload
         }
@@ -1306,7 +1348,18 @@ private final class BailianRenderedPageLoader: NSObject, WKNavigationDelegate {
         if let payload = try? BailianProvider.parseUsageResponse(fromHTML: html) {
             return payload
         }
+
+        if readyState == "complete" && isLoginRequired(bodyText) {
+            throw ProviderError.unauthorized
+        }
         return nil
+    }
+
+    private func isLoginRequired(_ bodyText: String) -> Bool {
+        (bodyText.contains("登录") && bodyText.contains("阿里云")) ||
+        bodyText.contains("请登录") ||
+        bodyText.contains("立即登录") ||
+        bodyText.contains("登录以使用")
     }
 
     private func evaluate(script: String) async throws -> String {

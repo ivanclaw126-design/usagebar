@@ -421,4 +421,5 @@ struct SettingsSnapshot: Codable, Equatable {
 
 struct RefreshPolicy {
     static let automaticInterval: TimeInterval = 300
+    static let automaticCheckInterval: TimeInterval = 15
 }

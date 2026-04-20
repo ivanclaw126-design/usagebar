@@ -218,7 +218,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
         }
 
         let diagnosticReport = diagnostics.map { "\($0.name): \($0.statusText) [\($0.path)] - \($0.detail)" }.joined(separator: "\n")
-        let resolvedPlanName = Self.normalizePlanName(reader.string(forKeyPaths: [["plan_type"]]) ?? account.plan)
+        let resolvedPlanName = Self.resolvePlanName(from: reader, fallback: account.plan)
         let metadata = CodexProviderMetadata(
             sourceLabel: "OAuth API",
             planName: resolvedPlanName,
@@ -233,7 +233,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
             ?? "Codex connected"
 
         var detailParts = ["OAuth API"]
-        if let plan = Self.normalizePlanName(account.plan) {
+        if let plan = resolvedPlanName {
             detailParts.append(plan)
         }
         if let email = account.email {
@@ -258,8 +258,62 @@ struct OpenAIPlusProvider: ProviderAdapter {
     }
 
     private static func normalizePlanName(_ plan: String?) -> String? {
-        guard let plan else { return nil }
-        return plan.lowercased() == "plus" ? "Plus" : plan
+        guard let rawPlan = normalizedField(plan)?.lowercased() else { return nil }
+
+        let canonical = rawPlan
+            .replacingOccurrences(of: "chatgpt", with: "")
+            .replacingOccurrences(of: "subscription", with: "")
+            .replacingOccurrences(of: "plan", with: "")
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+
+        switch canonical {
+        case "go":
+            return "Go"
+        case "plus":
+            return "Plus"
+        case "pro", "prolite":
+            return "Pro"
+        case "team":
+            return "Team"
+        case "enterprise":
+            return "Enterprise"
+        case "free":
+            return "Free"
+        default:
+            return rawPlan
+                .split(separator: " ")
+                .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+                .joined(separator: " ")
+        }
+    }
+
+    private static func resolvePlanName(from reader: ProviderPayloadReader, fallback: String? = nil) -> String? {
+        let candidates = reader.strings(forKeyPaths: [
+            ["account", "plan_type"],
+            ["account", "planType"],
+            ["account", "plan", "type"],
+            ["account", "plan", "name"],
+            ["account", "subscription", "plan"],
+            ["account", "subscription", "plan_type"],
+            ["account", "subscription", "name"],
+            ["subscription", "plan"],
+            ["subscription", "plan_type"],
+            ["subscription", "name"],
+            ["plan_type"],
+            ["planType"],
+            ["plan", "type"],
+            ["plan", "name"]
+        ]) + [fallback].compactMap { $0 }
+
+        for candidate in candidates {
+            if let normalized = normalizePlanName(candidate) {
+                return normalized
+            }
+        }
+
+        return nil
     }
 
     private func fetchFromWebSession(
@@ -290,12 +344,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
     static func makeWebSnapshot(from json: Any, diagnostics: [ProviderEndpointDiagnostic] = []) throws -> ProviderBalanceSnapshot {
         let fetchedAt = Date()
         let reader = ProviderPayloadReader(root: json)
-        let plan = Self.normalizePlanName(reader.string(forKeyPaths: [
-            ["account", "plan_type"],
-            ["account", "planType"],
-            ["plan_type"],
-            ["planType"]
-        ])) ?? "Plus"
+        let plan = Self.resolvePlanName(from: reader) ?? "Plus"
         let resetAt = reader.date(forKeyPaths: [
             ["account", "usage_reset_at"],
             ["account", "message_cap_reset_at"],
@@ -364,7 +413,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
 
         var detailParts: [String] = []
         detailParts.append(sourceLabel)
-        if let plan = Self.normalizePlanName(account.plan) {
+        if let plan = metadata.planName {
             detailParts.append(plan)
         }
         if let email = account.email {
@@ -430,7 +479,7 @@ struct OpenAIPlusProvider: ProviderAdapter {
             ?? "Codex connected"
 
         var detailParts: [String] = [sourceLabel]
-        if let plan = Self.normalizePlanName(account.plan) {
+        if let plan = metadata.planName {
             detailParts.append(plan)
         }
         if let email = account.email {
@@ -517,7 +566,13 @@ struct OpenAIPlusProvider: ProviderAdapter {
             let profile = payload?["https://api.openai.com/profile"] as? [String: Any]
 
             let resolvedEmail = normalizedField(email ?? profile?["email"] as? String ?? payload?["email"] as? String)
-            let plan = normalizedField(auth?["chatgpt_plan_type"] as? String ?? payload?["chatgpt_plan_type"] as? String)
+            let plan = normalizedField(
+                auth?["chatgpt_plan_type"] as? String
+                    ?? auth?["chatgpt_subscription_plan"] as? String
+                    ?? profile?["plan_type"] as? String
+                    ?? payload?["chatgpt_plan_type"] as? String
+                    ?? payload?["plan_type"] as? String
+            )
             return CodexAccountInfo(accountID: accountID, email: resolvedEmail, plan: plan)
         }
 
