@@ -218,6 +218,8 @@ final class ProviderStore: ObservableObject {
         }
 
         await refreshProvider(provider)
+        lastRefreshAt = Date()
+        persistCache()
     }
 
     func saveCredential(kind: CredentialKind, value: String, for provider: ProviderKind) {
@@ -418,11 +420,12 @@ final class ProviderStore: ObservableObject {
             try? credentialStore.save(refreshed, for: provider)
             return refreshed
         case .sessionToken:
-            if provider == .bailian,
-               let refreshedState = await sessionCapture.refreshBailianSessionState() {
-                let refreshed = StoredCredential(kind: .sessionToken, value: refreshedState)
-                try? credentialStore.save(refreshed, for: provider)
-                return refreshed
+            if provider == .bailian {
+                if let refreshedState = await sessionCapture.refreshBailianSessionState() {
+                    let refreshed = StoredCredential(kind: .sessionToken, value: refreshedState)
+                    try? credentialStore.save(refreshed, for: provider)
+                    return refreshed
+                }
             }
 
             guard provider == .bailian,
@@ -561,12 +564,26 @@ final class ProviderStore: ObservableObject {
     }
 
     private func scheduleAutomaticRefresh() {
+        refreshTask?.cancel()
         refreshTask = Task { [weak self] in
             while Task.isCancelled == false {
-                try? await Task.sleep(for: .seconds(RefreshPolicy.automaticInterval))
-                await self?.refresh(force: true)
+                let delay = await MainActor.run {
+                    self?.secondsUntilNextAutomaticRefresh() ?? RefreshPolicy.automaticCheckInterval
+                }
+                try? await Task.sleep(for: .seconds(delay))
+                await self?.refreshIfNeeded(force: false)
             }
         }
+    }
+
+    private func secondsUntilNextAutomaticRefresh() -> TimeInterval {
+        let remaining: TimeInterval
+        if let lastRefreshAt {
+            remaining = RefreshPolicy.automaticInterval - Date().timeIntervalSince(lastRefreshAt)
+        } else {
+            remaining = 0
+        }
+        return min(max(remaining, 1), RefreshPolicy.automaticCheckInterval)
     }
 
     private func persistCache() {
